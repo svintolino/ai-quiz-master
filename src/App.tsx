@@ -1,10 +1,14 @@
 import React, { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 
 interface Question {
   id: number;
   question: string;
   options: string[];
-  correctIndex: number; // 0-based index
+  correctIndex: number;
   explanation: string;
 }
 
@@ -360,11 +364,11 @@ const questions: Question[] = [
   },
   {
     id: 28,
-    question: "What should you do if an AI-generated suggestion contradicts Collectia’s internal policy?",
+    question: "What should you do if an AI-generated suggestion contradicts Collectia's internal policy?",
     options: [
       "Follow the AI suggestion because it might be smarter",
       "Ignore the internal policy",
-      "Always follow Collectia’s policy and disregard the conflicting AI suggestion",
+      "Always follow Collectia's policy and disregard the conflicting AI suggestion",
       "Ask the AI which rule to follow",
     ],
     correctIndex: 2,
@@ -420,6 +424,7 @@ const Quiz: React.FC = () => {
   const correctCount = answerLog.filter((a) => a.isCorrect).length;
   const totalAnswered = answerLog.length;
   const totalQuestions = randomizedQuestions.length;
+  const progressPercent = totalQuestions > 0 ? ((currentIndex + (showFeedback ? 1 : 0)) / totalQuestions) * 100 : 0;
 
   const handleStart = () => {
     setStarted(true);
@@ -432,29 +437,20 @@ const Quiz: React.FC = () => {
 
   const handleSubmit = () => {
     if (selectedIndex === null || showFeedback) return;
-
     const isCorrect = selectedIndex === currentQuestion.correctIndex;
-
     setAnswerLog((prev) => [
       ...prev,
-      {
-        questionId: currentQuestion.id,
-        selectedIndex,
-        correctIndex: currentQuestion.correctIndex,
-        isCorrect,
-      },
+      { questionId: currentQuestion.id, selectedIndex, correctIndex: currentQuestion.correctIndex, isCorrect },
     ]);
     setShowFeedback(true);
   };
 
   const handleNext = () => {
     if (!showFeedback) return;
-
     if (currentIndex + 1 >= totalQuestions) {
       setFinished(true);
       return;
     }
-
     setCurrentIndex((prev) => prev + 1);
     setSelectedIndex(null);
     setShowFeedback(false);
@@ -469,121 +465,254 @@ const Quiz: React.FC = () => {
     setFinished(false);
   };
 
+  // Welcome screen
   if (!started) {
     return (
-      <div style={{ maxWidth: 600, margin: "0 auto" }}>
-        <h1>GenAI Usage Quiz – Collectia</h1>
-        <p>
-          This quiz tests your understanding of safe and compliant use of Generative AI in Collectia’s debt collection
-          context.
-        </p>
-        <button onClick={handleStart}>Start Quiz</button>
+      <div className="min-h-screen bg-background bg-grid flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="w-full max-w-lg"
+        >
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm card-glow">
+            <CardHeader className="text-center space-y-4">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                className="mx-auto w-20 h-20 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center"
+              >
+                <span className="text-4xl">🤖</span>
+              </motion.div>
+              <CardTitle className="text-3xl font-bold text-glow">
+                GenAI Usage Quiz
+              </CardTitle>
+              <CardDescription className="text-base text-muted-foreground">
+                Test your understanding of safe and compliant use of Generative AI in Collectia's debt collection context.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg bg-secondary/50 border border-border/50 p-3 text-center">
+                  <p className="text-2xl font-bold text-primary font-mono">{totalQuestions}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Questions</p>
+                </div>
+                <div className="rounded-lg bg-secondary/50 border border-border/50 p-3 text-center">
+                  <p className="text-2xl font-bold text-accent font-mono">∞</p>
+                  <p className="text-xs text-muted-foreground mt-1">Retries</p>
+                </div>
+              </div>
+              <Button onClick={handleStart} className="w-full h-12 text-base font-semibold" size="lg">
+                Start Quiz →
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     );
   }
 
+  // Results screen
   if (finished) {
     const percentage = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
-
     let message: string;
+    let emoji: string;
+    let glowClass: string;
     if (percentage >= 80) {
       message = "Great job! You have a strong understanding of GenAI usage at Collectia.";
+      emoji = "🏆";
+      glowClass = "card-glow-success";
     } else if (percentage >= 50) {
       message = "Good start. Review the guide and try again to improve your score.";
+      emoji = "📚";
+      glowClass = "card-glow";
     } else {
       message = "You should revisit the GenAI usage guide before relying on GenAI in your work.";
+      emoji = "⚠️";
+      glowClass = "card-glow-accent";
     }
 
     return (
-      <div style={{ maxWidth: 600, margin: "0 auto" }}>
-        <h1>Quiz Completed</h1>
-        <p>
-          Score: <strong>{correctCount}</strong> / {totalQuestions} ({percentage}%)
-        </p>
-        <p>{message}</p>
-        <button onClick={handleRestart}>Restart Quiz</button>
+      <div className="min-h-screen bg-background bg-grid flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-lg"
+        >
+          <Card className={`border-border/50 bg-card/80 backdrop-blur-sm ${glowClass}`}>
+            <CardHeader className="text-center space-y-4">
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                className="text-6xl mx-auto"
+              >
+                {emoji}
+              </motion.div>
+              <CardTitle className="text-3xl font-bold">Quiz Complete</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="text-center">
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="text-6xl font-bold font-mono text-primary text-glow"
+                >
+                  {percentage}%
+                </motion.p>
+                <p className="text-muted-foreground mt-2">
+                  <span className="text-primary font-semibold">{correctCount}</span> / {totalQuestions} correct
+                </p>
+              </div>
+              <div className="rounded-lg bg-secondary/50 border border-border/50 p-4">
+                <p className="text-sm text-foreground/80">{message}</p>
+              </div>
+              <Button onClick={handleRestart} className="w-full h-12 text-base font-semibold" size="lg">
+                ↻ Restart Quiz
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     );
   }
 
+  // Question screen
   const lastAnswer = answerLog[answerLog.length - 1];
 
   return (
-    <div style={{ maxWidth: 600, margin: "0 auto" }}>
-      <h2>
-        Question {currentIndex + 1} / {totalQuestions}
-      </h2>
-      <p>{currentQuestion.question}</p>
+    <div className="min-h-screen bg-background bg-grid flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-2xl space-y-4">
+        {/* Progress bar */}
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
+          <div className="flex justify-between items-center text-sm text-muted-foreground">
+            <span className="font-mono">
+              Q{currentIndex + 1}/{totalQuestions}
+            </span>
+            <span className="font-mono text-primary">
+              {correctCount}/{totalAnswered} correct
+            </span>
+          </div>
+          <Progress value={progressPercent} className="h-1.5" />
+        </motion.div>
 
-      <div>
-        {currentQuestion.options.map((option, index) => {
-          const isSelected = selectedIndex === index;
-          const isCorrect = index === currentQuestion.correctIndex;
-          const userWasCorrect = lastAnswer?.isCorrect;
+        {/* Question card */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentIndex}
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-xl leading-relaxed font-medium">
+                  {currentQuestion.question}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {currentQuestion.options.map((option, index) => {
+                  const isSelected = selectedIndex === index;
+                  const isCorrect = index === currentQuestion.correctIndex;
+                  const userWasCorrect = lastAnswer?.isCorrect;
 
-          let background = "#f5f5f5";
+                  let optionClasses =
+                    "w-full text-left p-4 rounded-lg border transition-all duration-200 text-sm leading-relaxed ";
 
-          if (showFeedback) {
-            if (isCorrect) {
-              background = "#c8e6c9"; // green for correct
-            }
-            if (isSelected && !userWasCorrect) {
-              background = "#ffcdd2"; // red for wrong selected option
-            }
-          } else if (isSelected) {
-            background = "#bbdefb"; // blue for selection
-          }
+                  if (showFeedback) {
+                    if (isCorrect) {
+                      optionClasses +=
+                        "border-green-500/50 bg-green-500/10 text-green-300 card-glow-success";
+                    } else if (isSelected && !userWasCorrect) {
+                      optionClasses +=
+                        "border-destructive/50 bg-destructive/10 text-red-300";
+                    } else {
+                      optionClasses += "border-border/30 bg-secondary/20 text-muted-foreground opacity-50";
+                    }
+                  } else if (isSelected) {
+                    optionClasses += "border-primary/60 bg-primary/10 text-foreground card-glow";
+                  } else {
+                    optionClasses +=
+                      "border-border/40 bg-secondary/30 text-foreground/80 hover:border-primary/40 hover:bg-primary/5 cursor-pointer";
+                  }
 
-          return (
-            <button
-              key={index}
-              onClick={() => !showFeedback && setSelectedIndex(index)}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                marginBottom: 8,
-                padding: 8,
-                borderRadius: 4,
-                border: "1px solid #ccc",
-                background,
-              }}
-            >
-              {option}
-            </button>
-          );
-        })}
+                  return (
+                    <motion.button
+                      key={index}
+                      whileHover={!showFeedback ? { scale: 1.01 } : undefined}
+                      whileTap={!showFeedback ? { scale: 0.99 } : undefined}
+                      onClick={() => !showFeedback && setSelectedIndex(index)}
+                      className={optionClasses}
+                      disabled={showFeedback}
+                    >
+                      <span className="flex gap-3 items-start">
+                        <span className="shrink-0 w-6 h-6 rounded-full border border-current/30 flex items-center justify-center text-xs font-mono font-bold mt-0.5">
+                          {String.fromCharCode(65 + index)}
+                        </span>
+                        <span>{option}</span>
+                      </span>
+                    </motion.button>
+                  );
+                })}
+
+                {/* Submit button */}
+                {!showFeedback && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pt-2">
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={selectedIndex === null}
+                      className="w-full h-11 font-semibold"
+                    >
+                      Submit Answer
+                    </Button>
+                  </motion.div>
+                )}
+
+                {/* Feedback */}
+                {showFeedback && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-3 pt-2"
+                  >
+                    <div
+                      className={`rounded-lg p-4 border ${
+                        lastAnswer?.isCorrect
+                          ? "border-green-500/30 bg-green-500/5"
+                          : "border-destructive/30 bg-destructive/5"
+                      }`}
+                    >
+                      <p
+                        className={`font-bold text-sm mb-1 ${
+                          lastAnswer?.isCorrect ? "text-green-400" : "text-red-400"
+                        }`}
+                      >
+                        {lastAnswer?.isCorrect ? "✓ Correct!" : "✗ Incorrect"}
+                      </p>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {currentQuestion.explanation}
+                      </p>
+                    </div>
+                    <Button onClick={handleNext} className="w-full h-11 font-semibold">
+                      {currentIndex + 1 >= totalQuestions ? "Finish Quiz →" : "Next Question →"}
+                    </Button>
+                  </motion.div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </AnimatePresence>
       </div>
-
-      {!showFeedback && (
-        <button onClick={handleSubmit} disabled={selectedIndex === null} style={{ marginTop: 16 }}>
-          Submit
-        </button>
-      )}
-
-      {showFeedback && (
-        <div style={{ marginTop: 16 }}>
-          {lastAnswer?.isCorrect ? (
-            <p style={{ color: "green", fontWeight: "bold" }}>Correct!</p>
-          ) : (
-            <p style={{ color: "red", fontWeight: "bold" }}>Incorrect. The correct answer is highlighted in green.</p>
-          )}
-          <p>{currentQuestion.explanation}</p>
-          <button onClick={handleNext} style={{ marginTop: 8 }}>
-            {currentIndex + 1 >= totalQuestions ? "Finish Quiz" : "Next Question"}
-          </button>
-        </div>
-      )}
     </div>
   );
 };
 
 const App: React.FC = () => {
-  return (
-    <div>
-      <Quiz />
-    </div>
-  );
+  return <Quiz />;
 };
 
 export default App;
