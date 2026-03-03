@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
+type LangCode = "da" | "sv" | "no" | "fi" | "de";
+
 interface TrainingSection {
   id: number;
   title: string;
@@ -11,7 +13,124 @@ interface TrainingSection {
   mediaUrl: string;
 }
 
-const sections: TrainingSection[] = [
+interface LanguageConfig {
+  code: LangCode;
+  label: string;
+  flag: string;
+  t: {
+    appTitle: string;
+    introLead: string;
+    startButton: string;
+    sectionPrefix: string;
+    sectionOf: string;
+    trainingLabel: string;
+    autoNarrationHint: string;
+    quizButton: string;
+  };
+  // BCP-47 language tag for TTS
+  ttsLang: string;
+}
+
+// Color palette (inspired by your swatch + Collectia look)
+const COLORS = {
+  teal: "#00B894",
+  darkBlue: "#0B1727",
+  darkGrey: "#3E444F",
+  mint: "#C8FFF4",
+  mintSoft: "#E1FFFA",
+  tealSoft: "#5EF2CF",
+  white: "#FFFFFF",
+};
+
+const languageConfigs: LanguageConfig[] = [
+  {
+    code: "da",
+    label: "Dansk (DK)",
+    flag: "🇩🇰",
+    t: {
+      appTitle: "GenAI Obligatorisk Træning",
+      introLead: "Vælg sprog, og start den obligatoriske træning i sikker og compliant brug af GenAI hos Collectia.",
+      startButton: "Start træning",
+      sectionPrefix: "Afsnit",
+      sectionOf: "af",
+      trainingLabel: "GenAI Træning",
+      autoNarrationHint: "Teksten læses automatisk op. Du kan også læse med nedenfor.",
+      quizButton: "Gå til GenAI Quiz",
+    },
+    ttsLang: "da-DK",
+  },
+  {
+    code: "sv",
+    label: "Svenska (SE)",
+    flag: "🇸🇪",
+    t: {
+      appTitle: "Obligatorisk GenAI‑utbildning",
+      introLead:
+        "Välj språk och starta den obligatoriska utbildningen i säker och compliant användning av GenAI hos Collectia.",
+      startButton: "Starta utbildning",
+      sectionPrefix: "Avsnitt",
+      sectionOf: "av",
+      trainingLabel: "GenAI‑utbildning",
+      autoNarrationHint: "Texten läses upp automatiskt. Du kan också läsa med nedan.",
+      quizButton: "Gå till GenAI‑quiz",
+    },
+    ttsLang: "sv-SE",
+  },
+  {
+    code: "no",
+    label: "Norsk (NO)",
+    flag: "🇳🇴",
+    t: {
+      appTitle: "Obligatorisk GenAI‑opplæring",
+      introLead: "Velg språk, og start den obligatoriske opplæringen i sikker og compliant bruk av GenAI i Collectia.",
+      startButton: "Start opplæring",
+      sectionPrefix: "Del",
+      sectionOf: "av",
+      trainingLabel: "GenAI‑opplæring",
+      autoNarrationHint: "Teksten leses automatisk opp. Du kan også lese under.",
+      quizButton: "Gå til GenAI‑quiz",
+    },
+    ttsLang: "nb-NO",
+  },
+  {
+    code: "fi",
+    label: "Suomi (FI)",
+    flag: "🇫🇮",
+    t: {
+      appTitle: "Pakollinen GenAI‑koulutus",
+      introLead:
+        "Valitse kieli ja aloita pakollinen koulutus GenAI:n turvallisesta ja vaatimustenmukaisesta käytöstä Collectialla.",
+      startButton: "Aloita koulutus",
+      sectionPrefix: "Osa",
+      sectionOf: "/",
+      trainingLabel: "GenAI‑koulutus",
+      autoNarrationHint: "Teksti luetaan automaattisesti. Voit myös lukea sen alta.",
+      quizButton: "Siirry GenAI‑testiin",
+    },
+    ttsLang: "fi-FI",
+  },
+  {
+    code: "de",
+    label: "Deutsch (DE)",
+    flag: "🇩🇪",
+    t: {
+      appTitle: "Verpflichtendes GenAI‑Training",
+      introLead:
+        "Wählen Sie eine Sprache und starten Sie das verpflichtende Training zur sicheren und konformen Nutzung von GenAI bei Collectia.",
+      startButton: "Training starten",
+      sectionPrefix: "Abschnitt",
+      sectionOf: "von",
+      trainingLabel: "GenAI‑Training",
+      autoNarrationHint: "Der Text wird automatisch vorgelesen. Sie können unten mitlesen.",
+      quizButton: "Zur GenAI‑Quiz",
+    },
+    ttsLang: "de-DE",
+  },
+];
+
+// Training content – currently same English text for all languages.
+// You can later localize per language by copying and translating.
+const baseSections: TrainingSection[] = [
   {
     id: 1,
     title: "Welcome to Collectia’s GenAI Mandatory Training",
@@ -184,62 +303,128 @@ Take your time, and remember: in real work, policies and laws always override AI
   },
 ];
 
-// EXACTLY like your console test: no cancel, just speak
-function speakText(text: string) {
+// Very simple TTS, now with language tag
+function speakText(text: string, langTag: string) {
   const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = langTag;
   speechSynthesis.speak(utterance);
 }
 
 const Training: React.FC = () => {
+  const [selectedLang, setSelectedLang] = useState<LangCode | null>(null);
   const [started, setStarted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const currentSection = sections[currentIndex];
-  const totalSections = sections.length;
+  const langConfig = languageConfigs.find((l) => l.code === selectedLang) ?? languageConfigs[0];
+  const t = langConfig.t;
+
+  const currentSection = baseSections[currentIndex];
+  const totalSections = baseSections.length;
   const progress = ((currentIndex + 1) / totalSections) * 100;
 
   // Auto‑narrate when training starts and when section changes
   useEffect(() => {
-    if (!started) return;
-    const t = setTimeout(() => {
-      speakText(currentSection.text);
+    if (!started || !selectedLang) return;
+    const timer = setTimeout(() => {
+      speakText(currentSection.text, langConfig.ttsLang);
     }, 200);
     return () => {
-      clearTimeout(t);
-      // No speechSynthesis.cancel() here on purpose
+      clearTimeout(timer);
     };
-  }, [started, currentIndex, currentSection.text]);
+  }, [started, currentIndex, currentSection.text, selectedLang, langConfig.ttsLang]);
 
-  const goToQuizUrl = "https://example.com/quiz"; // change to your quiz URL when ready
+  const goToQuizUrl = "https://example.com/quiz"; // change to your quiz URL
 
+  // ---------- Start screen: language selection ----------
   if (!started) {
     return (
-      <div className="min-h-screen bg-background bg-grid flex items-center justify-center p-4">
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{
+          background: `linear-gradient(135deg, ${COLORS.darkBlue} 0%, ${COLORS.teal} 40%, ${COLORS.mintSoft} 100%)`,
+        }}
+      >
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="w-full max-w-2xl"
+          className="w-full max-w-3xl"
         >
-          <Card className="border-border/50 bg-card/80 backdrop-blur-sm card-glow">
-            <CardHeader className="text-center space-y-4">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="mx-auto w-20 h-20 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center"
-              >
-                <span className="text-4xl">🎓</span>
-              </motion.div>
-              <CardTitle className="text-3xl font-bold text-glow">GenAI Mandatory Training</CardTitle>
-              <CardDescription className="text-base text-muted-foreground">
-                Click Start Training, and each section will be narrated automatically.
-              </CardDescription>
+          <Card
+            className="backdrop-blur-sm"
+            style={{
+              borderColor: "#1E293B",
+              background: "linear-gradient(135deg, rgba(11,23,39,0.98), rgba(11,23,39,0.92))",
+            }}
+          >
+            <CardHeader className="space-y-4">
+              <div className="flex justify-between items-start gap-4">
+                <div>
+                  <CardTitle className="text-3xl font-bold" style={{ color: COLORS.mint }}>
+                    {t.appTitle}
+                  </CardTitle>
+                  <CardDescription className="mt-2 text-sm" style={{ color: "rgba(226,232,240,0.8)" }}>
+                    {t.introLead}
+                  </CardDescription>
+                </div>
+                <div
+                  className="px-3 py-2 rounded-lg text-xs font-semibold"
+                  style={{
+                    backgroundColor: COLORS.teal,
+                    color: COLORS.darkBlue,
+                  }}
+                >
+                  Collectia • GenAI
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <Button onClick={() => setStarted(true)} className="w-full h-12 text-base font-semibold" size="lg">
-                Start Training →
-              </Button>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: COLORS.mintSoft }}>
+                  Vælg sprog / Choose language
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                  {languageConfigs.map((lang) => {
+                    const isActive = selectedLang === lang.code;
+                    return (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        onClick={() => setSelectedLang(lang.code)}
+                        className="flex flex-col items-center justify-center rounded-lg px-2 py-2 border text-xs font-medium transition"
+                        style={{
+                          borderColor: isActive ? COLORS.tealSoft : "rgba(148,163,184,0.4)",
+                          backgroundColor: isActive ? "rgba(0,184,148,0.18)" : "rgba(15,23,42,0.7)",
+                          color: COLORS.white,
+                        }}
+                      >
+                        <span className="text-lg mb-1">{lang.flag}</span>
+                        <span>{lang.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+                <div className="flex-1 text-xs text-slate-300">
+                  <p>• Træningen er obligatorisk før du får adgang til GenAI‑værktøjer.</p>
+                  <p>• Hvert afsnit bliver læst op automatisk.</p>
+                  <p>• Afsluttes med en GenAI‑quiz.</p>
+                </div>
+                <Button
+                  disabled={!selectedLang}
+                  onClick={() => setStarted(true)}
+                  className="md:w-48 h-11 font-semibold"
+                  style={{
+                    backgroundColor: selectedLang ? COLORS.teal : "#64748B",
+                    color: COLORS.darkBlue,
+                    borderColor: "transparent",
+                  }}
+                >
+                  {t.startButton} →
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
@@ -247,37 +432,65 @@ const Training: React.FC = () => {
     );
   }
 
+  // ---------- Training screen ----------
   return (
-    <div className="min-h-screen bg-background bg-grid flex items-center justify-center p-4">
-      <div className="w-full max-w-3xl space-y-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        background: `radial-gradient(circle at top left, ${COLORS.tealSoft} 0, transparent 55%), radial-gradient(circle at bottom right, ${COLORS.mint} 0, transparent 65%), ${COLORS.darkBlue}`,
+      }}
+    >
+      <div className="w-full max-w-4xl space-y-4">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
-          <div className="flex justify-between items-center text-sm text-muted-foreground">
-            <span className="font-mono">
-              Section {currentIndex + 1}/{totalSections}
+          <div className="flex justify-between items-center text-xs md:text-sm">
+            <span className="font-mono" style={{ color: COLORS.mintSoft }}>
+              {t.sectionPrefix} {currentIndex + 1} {t.sectionOf} {totalSections}
             </span>
-            <span className="font-mono text-primary">GenAI Training</span>
+            <span className="font-mono font-semibold" style={{ color: COLORS.tealSoft }}>
+              {t.trainingLabel}
+            </span>
           </div>
-          <Progress value={progress} className="h-1.5" />
+          <Progress
+            value={progress}
+            className="h-1.5"
+            style={{
+              backgroundColor: "rgba(15,23,42,0.9)",
+            }}
+          />
         </motion.div>
 
         <AnimatePresence mode="wait">
           <motion.div
             key={currentSection.id}
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -40 }}
-            transition={{ duration: 0.3 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.25 }}
           >
-            <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+            <Card
+              className="backdrop-blur-md"
+              style={{
+                borderColor: "rgba(148,163,184,0.45)",
+                background: "linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.94))",
+              }}
+            >
               <CardHeader className="space-y-2">
-                <CardTitle className="text-2xl font-semibold leading-snug">{currentSection.title}</CardTitle>
-                <CardDescription className="text-xs text-muted-foreground">
-                  The text is narrated automatically. You can also read along below.
+                <CardTitle className="text-2xl md:text-3xl font-semibold" style={{ color: COLORS.white }}>
+                  {currentSection.title}
+                </CardTitle>
+                <CardDescription className="text-xs md:text-sm" style={{ color: "rgba(203,213,225,0.9)" }}>
+                  {t.autoNarrationHint}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Image, visible immediately */}
-                <div className="rounded-xl overflow-hidden border border-border/40 bg-black/40 aspect-video">
+                {/* Image */}
+                <div
+                  className="rounded-xl overflow-hidden border aspect-video"
+                  style={{
+                    borderColor: "rgba(51,65,85,0.9)",
+                    backgroundColor: "#020617",
+                  }}
+                >
                   <img
                     src={currentSection.mediaUrl}
                     alt={currentSection.title}
@@ -286,13 +499,21 @@ const Training: React.FC = () => {
                 </div>
 
                 {/* Text */}
-                <div className="rounded-lg bg-secondary/40 border border-border/40 p-4 max-h-64 overflow-y-auto">
+                <div
+                  className="rounded-lg p-4 max-h-64 overflow-y-auto text-sm md:text-base"
+                  style={{
+                    backgroundColor: "rgba(15,23,42,0.9)",
+                    borderColor: "rgba(51,65,85,0.9)",
+                    color: "rgba(226,232,240,0.95)",
+                    borderWidth: 1,
+                  }}
+                >
                   {currentSection.text
                     .trim()
                     .split("\n")
                     .filter((p) => p.trim().length > 0)
                     .map((p, idx) => (
-                      <p key={idx} className="text-sm text-foreground/90 leading-relaxed mb-2">
+                      <p key={idx} className="mb-2 leading-relaxed">
                         {p.trim()}
                       </p>
                     ))}
@@ -305,19 +526,36 @@ const Training: React.FC = () => {
                     size="sm"
                     onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
                     disabled={currentIndex === 0}
+                    style={{
+                      borderColor: "rgba(148,163,184,0.6)",
+                      color: COLORS.mintSoft,
+                      backgroundColor: "transparent",
+                    }}
                   >
                     ← Previous
                   </Button>
 
                   {currentIndex === totalSections - 1 ? (
-                    <Button size="sm" className="font-semibold" onClick={() => window.open(goToQuizUrl, "_blank")}>
-                      Go to GenAI Usage Quiz →
+                    <Button
+                      size="sm"
+                      className="font-semibold"
+                      onClick={() => window.open(goToQuizUrl, "_blank")}
+                      style={{
+                        backgroundColor: COLORS.teal,
+                        color: COLORS.darkBlue,
+                      }}
+                    >
+                      {t.quizButton} →
                     </Button>
                   ) : (
                     <Button
                       size="sm"
                       className="font-semibold"
                       onClick={() => setCurrentIndex((i) => Math.min(totalSections - 1, i + 1))}
+                      style={{
+                        backgroundColor: COLORS.teal,
+                        color: COLORS.darkBlue,
+                      }}
                     >
                       Next Section →
                     </Button>
