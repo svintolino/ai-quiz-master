@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -27,8 +27,8 @@ Before you are allowed to use GenAI tools at Collectia, you must complete this G
 
 At the end of this training, you will complete a multiple choice quiz to confirm your understanding.
     `,
-    mediaType: "video",
-    mediaUrl: "https://videos.pexels.com/video-files/5666408/5666408-uhd_2560_1440_25fps.mp4",
+    mediaType: "image",
+    mediaUrl: "https://images.pexels.com/photos/1181355/pexels-photo-1181355.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
     id: 2,
@@ -82,8 +82,8 @@ A classic example of high risk data is debtor payment history linked to name and
 
 When you are in doubt about a tool or a type of data, do not share the data and ask IT Security or Compliance.
     `,
-    mediaType: "video",
-    mediaUrl: "https://videos.pexels.com/video-files/853889/853889-hd_1920_1080_30fps.mp4",
+    mediaType: "image",
+    mediaUrl: "https://images.pexels.com/photos/5380642/pexels-photo-5380642.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
     id: 5,
@@ -118,8 +118,8 @@ Instructions that come from user or debtor content are untrusted. You must never
 
 If you are unsure whether a GenAI tool is GDPR compliant for debtor data, you must not use it and should ask IT Security or Compliance for guidance.
     `,
-    mediaType: "video",
-    mediaUrl: "https://videos.pexels.com/video-files/1715490/1715490-hd_1920_1080_30fps.mp4",
+    mediaType: "image",
+    mediaUrl: "https://images.pexels.com/photos/5380648/pexels-photo-5380648.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
     id: 7,
@@ -152,8 +152,8 @@ Unacceptable uses include letting GenAI decide which debtors to escalate to lega
 
 If AI suggests wording that seems aggressive or harassing, you must reject it and adjust the tone to comply with consumer protection rules.
     `,
-    mediaType: "video",
-    mediaUrl: "https://videos.pexels.com/video-files/3195391/3195391-uhd_2560_1440_25fps.mp4",
+    mediaType: "image",
+    mediaUrl: "https://images.pexels.com/photos/2777898/pexels-photo-2777898.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
     id: 9,
@@ -195,128 +195,45 @@ Take your time, and remember: in real work, policies and laws always override AI
   },
 ];
 
-// Text-to-speech helper hook with support detection
-const useTextToSpeech = () => {
-  const [supported, setSupported] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
-  const [paused, setPaused] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window && "SpeechSynthesisUtterance" in window) {
-      setSupported(true);
-    } else {
-      setSupported(false);
-      console.warn("Text-to-speech not supported in this browser/environment.");
-    }
-  }, []);
-
-  const cancelSpeech = () => {
-    if (!supported) return;
-    window.speechSynthesis.cancel();
-    setSpeaking(false);
-    setPaused(false);
-  };
-
-  const speak = (text: string) => {
-    if (!supported) return;
-    cancelSpeech();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.onend = () => {
-      setSpeaking(false);
-      setPaused(false);
-    };
-    utterance.onerror = () => {
-      setSpeaking(false);
-      setPaused(false);
-    };
-    window.speechSynthesis.speak(utterance);
-    setSpeaking(true);
-    setPaused(false);
-  };
-
-  const pause = () => {
-    if (!supported) return;
-    if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-      window.speechSynthesis.pause();
-      setPaused(true);
-    }
-  };
-
-  const resume = () => {
-    if (!supported) return;
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-      setPaused(false);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (supported) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, [supported]);
-
-  return { supported, speak, pause, resume, cancelSpeech, speaking, paused };
-};
+// Simple function to speak text
+function speakText(text: string) {
+  if (typeof window === "undefined") return;
+  if (!("speechSynthesis" in window) || typeof window.SpeechSynthesisUtterance !== "function") {
+    return;
+  }
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 1.0;
+  utterance.pitch = 1.0;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
 
 const Training: React.FC = () => {
   const [started, setStarted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const { supported, speak, pause, resume, cancelSpeech, speaking, paused } = useTextToSpeech();
 
-  const currentSection = useMemo(() => sections[currentIndex], [currentIndex]);
+  const currentSection = sections[currentIndex];
   const totalSections = sections.length;
   const progress = totalSections > 0 ? ((currentIndex + 1) / totalSections) * 100 : 0;
 
-  // Automatically speak when training starts and when section changes
+  // Start narration automatically once training has started,
+  // and every time the section changes.
   useEffect(() => {
     if (!started) return;
-    if (!supported) return;
-    // Slight delay to let the section render
+    // small delay so React has rendered the text
     const timer = setTimeout(() => {
-      speak(currentSection.text);
-    }, 300);
+      speakText(currentSection.text);
+    }, 200);
     return () => {
       clearTimeout(timer);
-      cancelSpeech();
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
     };
-  }, [started, currentSection, supported, speak, cancelSpeech]);
+  }, [started, currentIndex, currentSection.text]);
 
-  const handleNext = () => {
-    if (currentIndex + 1 < totalSections) {
-      setCurrentIndex((prev) => prev + 1);
-    }
-  };
+  const goToQuizUrl = "https://example.com/quiz"; // change to your quiz URL when ready
 
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1);
-    }
-  };
-
-  const handlePlay = () => {
-    if (!started) return;
-    if (paused) {
-      resume();
-    } else if (!speaking) {
-      speak(currentSection.text);
-    } else {
-      pause();
-    }
-  };
-
-  const handleRestartSpeech = () => {
-    speak(currentSection.text);
-  };
-
-  // Replace with real quiz URL when ready
-  const goToQuizUrl = "https://example.com/quiz";
-
-  // Intro screen
   if (!started) {
     return (
       <div className="min-h-screen bg-background bg-grid flex items-center justify-center p-4">
@@ -338,8 +255,7 @@ const Training: React.FC = () => {
               </motion.div>
               <CardTitle className="text-3xl font-bold text-glow">GenAI Mandatory Training</CardTitle>
               <CardDescription className="text-base text-muted-foreground">
-                Listen through this training to learn how to use Generative AI safely and compliantly at Collectia. At
-                the end you will take a short quiz.
+                This training will automatically narrate each section after you click Start.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -347,10 +263,6 @@ const Training: React.FC = () => {
                 <div className="rounded-lg bg-secondary/50 border border-border/50 p-3 text-center">
                   <p className="text-2xl font-bold text-primary font-mono">{sections.length}</p>
                   <p className="text-xs text-muted-foreground mt-1">Training sections</p>
-                </div>
-                <div className="rounded-lg bg-secondary/50 border border-border/50 p-3 text-center">
-                  <p className="text-2xl font-bold text-accent font-mono">🔊</p>
-                  <p className="text-xs text-muted-foreground mt-1">Audio narration</p>
                 </div>
               </div>
               <Button onClick={() => setStarted(true)} className="w-full h-12 text-base font-semibold" size="lg">
@@ -388,11 +300,11 @@ const Training: React.FC = () => {
               <CardHeader className="space-y-2">
                 <CardTitle className="text-2xl font-semibold leading-snug">{currentSection.title}</CardTitle>
                 <CardDescription className="text-xs text-muted-foreground">
-                  Listen to the narration and reflect on how this applies to your daily work.
+                  The text is being narrated automatically. You can also read along below.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Media - visible immediately */}
+                {/* Media – visible immediately */}
                 <div className="rounded-xl overflow-hidden border border-border/40 bg-black/40 aspect-video">
                   {currentSection.mediaType === "image" ? (
                     <img
@@ -425,59 +337,27 @@ const Training: React.FC = () => {
                     ))}
                 </div>
 
-                {/* Audio controls */}
-                <div className="flex flex-col gap-2">
-                  {!supported && (
-                    <p className="text-xs text-destructive/80">
-                      Narration is not supported in this browser or environment. Please read the text manually.
-                    </p>
-                  )}
-
-                  <div className="flex flex-wrap gap-3 items-center">
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={handlePlay}
-                      className="flex items-center gap-2"
-                      disabled={!supported}
-                    >
-                      {speaking && !paused ? "Pause narration" : "Play narration"}
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={paused ? resume : pause}
-                      disabled={!supported || !speaking}
-                    >
-                      {paused ? "Resume" : "Pause"}
-                    </Button>
-
-                    <Button size="sm" variant="ghost" onClick={handleRestartSpeech} disabled={!supported}>
-                      Restart narration
-                    </Button>
-                  </div>
-                </div>
-
                 {/* Navigation */}
                 <div className="flex justify-between items-center pt-2">
-                  <Button variant="outline" size="sm" onClick={handlePrevious} disabled={currentIndex === 0}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+                    disabled={currentIndex === 0}
+                  >
                     ← Previous
                   </Button>
 
                   {currentIndex === totalSections - 1 ? (
-                    <Button
-                      size="sm"
-                      className="font-semibold"
-                      onClick={() => {
-                        cancelSpeech();
-                        window.open(goToQuizUrl, "_blank");
-                      }}
-                    >
+                    <Button size="sm" className="font-semibold" onClick={() => window.open(goToQuizUrl, "_blank")}>
                       Go to GenAI Usage Quiz →
                     </Button>
                   ) : (
-                    <Button size="sm" className="font-semibold" onClick={handleNext}>
+                    <Button
+                      size="sm"
+                      className="font-semibold"
+                      onClick={() => setCurrentIndex((i) => Math.min(totalSections - 1, i + 1))}
+                    >
                       Next Section →
                     </Button>
                   )}
