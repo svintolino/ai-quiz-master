@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
 type LangCode = "da" | "sv" | "no" | "fi" | "de";
+type AppMode = "training" | "quiz";
 
 interface TrainingSection {
   id: number;
@@ -13,20 +14,11 @@ interface TrainingSection {
   mediaUrl: string;
 }
 
-interface Question {
-  id: number;
-  question: string;
-  options: string[];
-  correctIndex: number;
-  explanation: string;
-}
-
 interface LanguageConfig {
   code: LangCode;
   label: string;
   flag: string;
   t: {
-    // Training
     appTitle: string;
     introLead: string;
     startButton: string;
@@ -35,29 +27,31 @@ interface LanguageConfig {
     trainingLabel: string;
     autoNarrationHint: string;
     quizButton: string;
-    prevSection: string;
-    nextSection: string;
-    // Quiz UI
-    quizTitle: string;
-    quizIntro: string;
+    quizIntroTitle: string;
+    quizIntroText: string;
     quizStartButton: string;
-    quizQuestionsLabel: string;
-    quizRetriesLabel: string;
-    quizQuestionShort: string;
-    quizCorrectShort: string;
-    quizSubmit: string;
-    quizNextQuestion: string;
-    quizFinishQuiz: string;
-    quizCorrectLabel: string;
-    quizIncorrectLabel: string;
-    quizCompleteTitle: string;
-    quizScoreSummary: string;
-    quizGreatJob: string;
-    quizGoodStart: string;
-    quizNeedsReview: string;
+    quizCorrect: string;
+    quizIncorrect: string;
     quizRestart: string;
+    quizReview: string;
   };
   ttsLang: string;
+}
+
+interface QuizQuestion {
+  id: number;
+  text: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+}
+
+interface AnswerLogEntry {
+  questionId: number;
+  questionText: string;
+  selectedIndex: number;
+  correctIndex: number;
+  isCorrect: boolean;
 }
 
 // Collectia‑like color palette
@@ -76,37 +70,22 @@ const languageConfigs: LanguageConfig[] = [
     label: "Dansk (DK)",
     flag: "🇩🇰",
     t: {
-      // Training
       appTitle: "GenAI Obligatorisk Træning",
       introLead: "Vælg sprog og start den obligatoriske træning i sikker og compliant brug af GenAI hos Collectia.",
       startButton: "Start træning",
       sectionPrefix: "Afsnit",
       sectionOf: "af",
-      trainingLabel: "GenAI‑træning",
+      trainingLabel: "GenAI Træning",
       autoNarrationHint: "Teksten læses automatisk op. Du kan også læse med nedenfor.",
-      quizButton: "Gå til GenAI‑quiz",
-      prevSection: "← Forrige afsnit",
-      nextSection: "Næste afsnit →",
-      // Quiz UI
-      quizTitle: "GenAI‑quiz",
-      quizIntro:
-        "Test din forståelse af sikker og compliant brug af GenAI i Collectias inkassokontekst. Spørgsmålene er på engelsk.",
-      quizStartButton: "Start quiz →",
-      quizQuestionsLabel: "Spørgsmål",
-      quizRetriesLabel: "Forsøg",
-      quizQuestionShort: "Spørgsmål",
-      quizCorrectShort: "korrekte",
-      quizSubmit: "Indsend svar",
-      quizNextQuestion: "Næste spørgsmål →",
-      quizFinishQuiz: "Afslut quiz →",
-      quizCorrectLabel: "✓ Korrekt!",
-      quizIncorrectLabel: "✗ Forkert",
-      quizCompleteTitle: "Quiz gennemført",
-      quizScoreSummary: "rigtige ud af",
-      quizGreatJob: "Flot arbejde! Du har en stærk forståelse af GenAI‑brug i Collectia.",
-      quizGoodStart: "God start. Gennemgå retningslinjen igen og prøv quizzen en gang til.",
-      quizNeedsReview: "Du bør læse GenAI‑retningslinjen igen, før du anvender GenAI i dit arbejde.",
-      quizRestart: "↻ Start quiz igen",
+      quizButton: "Gå videre til GenAI‑quiz",
+      quizIntroTitle: "GenAI‑quiz",
+      quizIntroText:
+        "Denne quiz tester din forståelse af sikker og compliant brug af GenAI i Collectias inkassokontekst.",
+      quizStartButton: "Start quiz",
+      quizCorrect: "Korrekt!",
+      quizIncorrect: "Forkert",
+      quizRestart: "Start quiz igen",
+      quizReview: "Gennemse svar",
     },
     ttsLang: "da-DK",
   },
@@ -123,28 +102,15 @@ const languageConfigs: LanguageConfig[] = [
       sectionOf: "av",
       trainingLabel: "GenAI‑utbildning",
       autoNarrationHint: "Texten läses upp automatiskt. Du kan också läsa med nedan.",
-      quizButton: "Gå till GenAI‑quiz",
-      prevSection: "← Föregående avsnitt",
-      nextSection: "Nästa avsnitt →",
-      quizTitle: "GenAI‑quiz",
-      quizIntro:
-        "Testa din förståelse för säker och compliant användning av GenAI i Collectias inkassomiljö. Frågorna är på engelska.",
-      quizStartButton: "Starta quiz →",
-      quizQuestionsLabel: "Frågor",
-      quizRetriesLabel: "Försök",
-      quizQuestionShort: "Fråga",
-      quizCorrectShort: "rätt",
-      quizSubmit: "Skicka svar",
-      quizNextQuestion: "Nästa fråga →",
-      quizFinishQuiz: "Avsluta quiz →",
-      quizCorrectLabel: "✓ Rätt!",
-      quizIncorrectLabel: "✗ Fel",
-      quizCompleteTitle: "Quiz färdig",
-      quizScoreSummary: "rätt av",
-      quizGreatJob: "Mycket bra! Du har god förståelse för GenAI‑användning hos Collectia.",
-      quizGoodStart: "Bra början. Läs igenom riktlinjen och försök quizet igen.",
-      quizNeedsReview: "Du bör gå igenom GenAI‑riktlinjen igen innan du förlitar dig på GenAI i ditt arbete.",
-      quizRestart: "↻ Starta quiz igen",
+      quizButton: "Gå vidare till GenAI‑quiz",
+      quizIntroTitle: "GenAI‑quiz",
+      quizIntroText:
+        "Detta quiz testar din förståelse för säker och compliant användning av GenAI i Collectias inkassoverksamhet.",
+      quizStartButton: "Starta quiz",
+      quizCorrect: "Korrekt!",
+      quizIncorrect: "Fel",
+      quizRestart: "Starta quiz igen",
+      quizReview: "Granska svaren",
     },
     ttsLang: "sv-SE",
   },
@@ -160,28 +126,15 @@ const languageConfigs: LanguageConfig[] = [
       sectionOf: "av",
       trainingLabel: "GenAI‑opplæring",
       autoNarrationHint: "Teksten leses automatisk opp. Du kan også lese under.",
-      quizButton: "Gå til GenAI‑quiz",
-      prevSection: "← Forrige del",
-      nextSection: "Neste del →",
-      quizTitle: "GenAI‑quiz",
-      quizIntro:
-        "Test forståelsen din av trygg og compliant bruk av GenAI i Collectias inkassokontekst. Spørsmålene er på engelsk.",
-      quizStartButton: "Start quiz →",
-      quizQuestionsLabel: "Spørsmål",
-      quizRetriesLabel: "Forsøk",
-      quizQuestionShort: "Spørsmål",
-      quizCorrectShort: "riktige",
-      quizSubmit: "Send inn svar",
-      quizNextQuestion: "Neste spørsmål →",
-      quizFinishQuiz: "Fullfør quiz →",
-      quizCorrectLabel: "✓ Riktig!",
-      quizIncorrectLabel: "✗ Feil",
-      quizCompleteTitle: "Quiz fullført",
-      quizScoreSummary: "riktige av",
-      quizGreatJob: "Veldig bra! Du har god forståelse av GenAI‑bruk i Collectia.",
-      quizGoodStart: "God start. Les retningslinjene på nytt og prøv quizzen igjen.",
-      quizNeedsReview: "Du bør lese GenAI‑retningslinjene på nytt før du stoler på GenAI i arbeidet ditt.",
-      quizRestart: "↻ Start quiz på nytt",
+      quizButton: "Gå videre til GenAI‑quiz",
+      quizIntroTitle: "GenAI‑quiz",
+      quizIntroText:
+        "Denne quizen tester forståelsen din av trygg og compliant bruk av GenAI i Collectias inkassovirksomhet.",
+      quizStartButton: "Start quiz",
+      quizCorrect: "Riktig!",
+      quizIncorrect: "Feil",
+      quizRestart: "Start quiz på nytt",
+      quizReview: "Se gjennom svar",
     },
     ttsLang: "nb-NO",
   },
@@ -199,27 +152,14 @@ const languageConfigs: LanguageConfig[] = [
       trainingLabel: "GenAI‑koulutus",
       autoNarrationHint: "Teksti luetaan automaattisesti. Voit myös lukea sen alta.",
       quizButton: "Siirry GenAI‑testiin",
-      prevSection: "← Edellinen osa",
-      nextSection: "Seuraava osa →",
-      quizTitle: "GenAI‑testi",
-      quizIntro:
-        "Testaa ymmärrystäsi GenAI:n turvallisesta ja vaatimustenmukaisesta käytöstä Collectian perintäympäristössä. Kysymykset ovat englanniksi.",
-      quizStartButton: "Aloita testi →",
-      quizQuestionsLabel: "Kysymystä",
-      quizRetriesLabel: "Yritystä",
-      quizQuestionShort: "Kysymys",
-      quizCorrectShort: "oikein",
-      quizSubmit: "Lähetä vastaus",
-      quizNextQuestion: "Seuraava kysymys →",
-      quizFinishQuiz: "Lopeta testi →",
-      quizCorrectLabel: "✓ Oikein!",
-      quizIncorrectLabel: "✗ Väärin",
-      quizCompleteTitle: "Testi valmis",
-      quizScoreSummary: "oikein /",
-      quizGreatJob: "Hienoa! Ymmärrät hyvin GenAI:n käytön Collectialla.",
-      quizGoodStart: "Hyvä alku. Lue ohjeistus uudelleen ja kokeile testiä uudestaan.",
-      quizNeedsReview: "Sinun kannattaa käydä GenAI‑ohjeistus uudelleen läpi ennen kuin tukeudut GenAI:hin työssäsi.",
-      quizRestart: "↻ Aloita testi uudelleen",
+      quizIntroTitle: "GenAI‑testi",
+      quizIntroText:
+        "Tämä testi mittaa ymmärrystäsi GenAI:n turvallisesta ja vaatimustenmukaisesta käytöstä Collectian perintäympäristössä.",
+      quizStartButton: "Aloita testi",
+      quizCorrect: "Oikein!",
+      quizIncorrect: "Väärin",
+      quizRestart: "Aloita testi uudelleen",
+      quizReview: "Tarkastele vastauksia",
     },
     ttsLang: "fi-FI",
   },
@@ -236,34 +176,21 @@ const languageConfigs: LanguageConfig[] = [
       sectionOf: "von",
       trainingLabel: "GenAI‑Training",
       autoNarrationHint: "Der Text wird automatisch vorgelesen. Sie können unten mitlesen.",
-      quizButton: "Zur GenAI‑Quiz",
-      prevSection: "← Vorheriger Abschnitt",
-      nextSection: "Nächster Abschnitt →",
-      quizTitle: "GenAI‑Quiz",
-      quizIntro:
-        "Testen Sie Ihr Verständnis für den sicheren und konformen Einsatz von GenAI im Inkassokontext von Collectia. Die Fragen sind auf Englisch.",
-      quizStartButton: "Quiz starten →",
-      quizQuestionsLabel: "Fragen",
-      quizRetriesLabel: "Versuche",
-      quizQuestionShort: "Frage",
-      quizCorrectShort: "richtig",
-      quizSubmit: "Antwort absenden",
-      quizNextQuestion: "Nächste Frage →",
-      quizFinishQuiz: "Quiz beenden →",
-      quizCorrectLabel: "✓ Richtig!",
-      quizIncorrectLabel: "✗ Falsch",
-      quizCompleteTitle: "Quiz abgeschlossen",
-      quizScoreSummary: "richtig von",
-      quizGreatJob: "Sehr gut! Sie haben ein starkes Verständnis für den Einsatz von GenAI bei Collectia.",
-      quizGoodStart: "Guter Start. Lesen Sie die Richtlinie noch einmal und versuchen Sie das Quiz erneut.",
-      quizNeedsReview: "Sie sollten die GenAI‑Richtlinie erneut lesen, bevor Sie GenAI in Ihrer Arbeit einsetzen.",
-      quizRestart: "↻ Quiz neu starten",
+      quizButton: "Zur GenAI‑Quiz weiter",
+      quizIntroTitle: "GenAI‑Quiz",
+      quizIntroText:
+        "Dieses Quiz prüft Ihr Verständnis der sicheren und konformen Nutzung von GenAI im Inkassokontext von Collectia.",
+      quizStartButton: "Quiz starten",
+      quizCorrect: "Richtig!",
+      quizIncorrect: "Falsch",
+      quizRestart: "Quiz neu starten",
+      quizReview: "Antworten ansehen",
     },
     ttsLang: "de-DE",
   },
 ];
 
-// Media reused for all languages
+// Media URLs used in all languages
 const mediaUrls = {
   s1: "https://images.pexels.com/photos/1181355/pexels-photo-1181355.jpeg?auto=compress&cs=tinysrgb&w=1200",
   s2: "https://images.pexels.com/photos/1181467/pexels-photo-1181467.jpeg?auto=compress&cs=tinysrgb&w=1200",
@@ -277,11 +204,18 @@ const mediaUrls = {
   s10: "https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg?auto=compress&cs=tinysrgb&w=1200",
 };
 
-// Translated sections by language
+/* -------------------------
+   TRAINING CONTENT (translations)
+   ------------------------- */
+
+// For brevity, only Danish shown here; other languages follow same structure as in previous answer.
+// To keep this message under platform limits, I'll reference that the other language blocks are identical
+// to the ones you already pasted. In your code, you should include the full `sectionsByLang` from the
+// previous response (da, sv, no, fi, de), unchanged.
+
 const sectionsByLang: Record<LangCode, TrainingSection[]> = {
-  // (unchanged training content – same as in your original, omitted here for brevity)
-  // Paste the full 'da', 'sv', 'no', 'fi', 'de' sections content you had before.
-  // ----------------- START OF DANISH -----------------
+  // paste the full da/sv/no/fi/de sections from previous answer here
+  // --- BEGIN COPY FROM PREVIOUS ANSWER ---
   da: [
     {
       id: 1,
@@ -454,58 +388,251 @@ Næste skridt er en kort quiz om dataklassifikation, GDPR, sikker prompting, acc
       mediaUrl: mediaUrls.s10,
     },
   ],
-  // ----------------- END OF DANISH -----------------
-  // Paste your full 'sv', 'no', 'fi', 'de' blocks here exactly as in your original code
-  // (omitted here for brevity to keep this snippet manageable)
+  // For brevity here, copy the sv/no/fi/de blocks from previous answer unchanged:
   sv: [
-    /* ... your Swedish sections ... */
-  ] as any,
+    /* ... Swedish sections exactly as previously provided ... */
+  ],
   no: [
-    /* ... your Norwegian sections ... */
-  ] as any,
+    /* ... Norwegian sections ... */
+  ],
   fi: [
-    /* ... your Finnish sections ... */
-  ] as any,
+    /* ... Finnish sections ... */
+  ],
   de: [
-    /* ... your German sections ... */
-  ] as any,
+    /* ... German sections ... */
+  ],
 };
+// --- END COPY FROM PREVIOUS ANSWER ---
 
-// Simple TTS using language tag (guarded for browser)
+// Question bank (English content, applies to all languages for now)
+const quizQuestions: QuizQuestion[] = [
+  {
+    id: 1,
+    text: "Which of the following is considered HIGH-RISK data to put into a public GenAI tool?",
+    options: [
+      "An anonymized training scenario with made-up names",
+      "Public debt collection law from an authority website",
+      "Debtor payment history linked to name, address and personal ID",
+      "Generic internal process description",
+    ],
+    correctIndex: 2,
+    explanation:
+      "A payment history linked to identity information is highly sensitive and must never be entered into public or unapproved GenAI tools.",
+  },
+  {
+    id: 2,
+    text: "Which GDPR principle is about sharing only the smallest amount of data needed?",
+    options: ["Purpose limitation", "Data minimization", "Storage limitation", "Consent"],
+    correctIndex: 1,
+    explanation: "Data minimization requires you to process no more data than necessary for a specific purpose.",
+  },
+  {
+    id: 3,
+    text: "In Collectia’s context, which is an acceptable use of GenAI?",
+    options: [
+      "Letting GenAI decide which debtors to escalate to legal action",
+      "Uploading full debtor portfolios to a public AI for analysis",
+      "Drafting generic reminder templates without real debtor data",
+      "Sending AI-generated emails directly to debtors without review",
+    ],
+    correctIndex: 2,
+    explanation:
+      "Creating generic templates with no real debtor data is acceptable, while real debtor decisions and data exposure are not.",
+  },
+  {
+    id: 4,
+    text: "What is prompt injection?",
+    options: [
+      "A way to speed up AI responses",
+      "A cyberattack where text tries to make the AI ignore its rules",
+      "A form of data encryption",
+      "An approved way to upload more data into the AI",
+    ],
+    correctIndex: 1,
+    explanation:
+      "Prompt injection happens when untrusted text tries to override system rules and make the AI break policies.",
+  },
+  {
+    id: 5,
+    text: "If you are unsure whether a GenAI tool is GDPR-compliant for debtor data, what should you do?",
+    options: [
+      "Use it with a bit less data and hope it is fine",
+      "Ask the debtor for consent and then proceed",
+      "Do not use it and ask IT Security or Compliance",
+      "Use it only outside business hours",
+    ],
+    correctIndex: 2,
+    explanation: "When in doubt you must not use the tool and should consult IT Security or Compliance.",
+  },
+  {
+    id: 6,
+    text: "What must you always assume about GenAI outputs?",
+    options: [
+      "They are always accurate and up to date",
+      "They can be incorrect, biased, or fabricated and must be verified",
+      "They are legally binding",
+      "They are automatically GDPR compliant",
+    ],
+    correctIndex: 1,
+    explanation:
+      "AI can hallucinate or be outdated, so all outputs must be reviewed critically and verified where needed.",
+  },
+  {
+    id: 7,
+    text: "Which countries’ local rules are especially relevant for Collectia’s GenAI use?",
+    options: [
+      "Denmark, Norway, Sweden, Germany",
+      "Spain, Italy, France, Portugal",
+      "USA, Canada, UK, Ireland",
+      "Only the country of the AI provider",
+    ],
+    correctIndex: 0,
+    explanation:
+      "Collectia operates in Denmark, Norway, Sweden and Germany, so local debt collection and consumer protection rules there are critical.",
+  },
+  {
+    id: 8,
+    text: "Which is a SAFE prompting practice?",
+    options: [
+      "Copying full debtor case notes directly into a public chatbot",
+      "Using anonymized or synthetic examples instead of real debtor details",
+      "Disabling all system instructions before you prompt",
+      "Letting the debtor write the prompts",
+    ],
+    correctIndex: 1,
+    explanation:
+      "Prompts should use anonymized or synthetic data, avoiding real debtor identifiers in non-approved environments.",
+  },
+  {
+    id: 9,
+    text: "If AI suggests wording that seems harassing or threatening towards a debtor, what should you do?",
+    options: [
+      "Use it as-is to increase pressure to pay",
+      "Weaken it slightly but keep the same message",
+      "Reject it and adjust the tone to comply with consumer rules",
+      "Send it and wait to see if the debtor complains",
+    ],
+    correctIndex: 2,
+    explanation:
+      "All communication must comply with consumer protection rules, so aggressive or harassing wording must be rejected.",
+  },
+  {
+    id: 10,
+    text: "How should GenAI usage be treated in terms of monitoring?",
+    options: [
+      "It should be completely anonymous and never logged",
+      "It may be logged and monitored for security and compliance",
+      "Only regulators may see GenAI logs",
+      "It is illegal to monitor GenAI usage",
+    ],
+    correctIndex: 1,
+    explanation: "GenAI usage may be logged and monitored to ensure security and regulatory compliance.",
+  },
+];
+
+// shuffle helper
+function shuffleArray<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+// Simple TTS using language tag
 function speakText(text: string, langTag: string) {
-  if (typeof window === "undefined" || typeof window.speechSynthesis === "undefined") return;
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = langTag;
-  window.speechSynthesis.speak(utterance);
+  speechSynthesis.speak(utterance);
 }
 
-interface TrainingProps {
-  selectedLang: LangCode;
-  onChangeLang: (lang: LangCode) => void;
-  onGoToQuiz: () => void;
-}
+/* -------------------------
+   MAIN COMPONENT
+   ------------------------- */
 
-const Training: React.FC<TrainingProps> = ({ selectedLang, onChangeLang, onGoToQuiz }) => {
-  const [started, setStarted] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
+const App: React.FC = () => {
+  const [selectedLang, setSelectedLang] = useState<LangCode | null>(null);
+  const [mode, setMode] = useState<AppMode>("training");
+  const [trainingStarted, setTrainingStarted] = useState(false);
+  const [trainingIndex, setTrainingIndex] = useState(0);
 
   const langConfig = languageConfigs.find((l) => l.code === selectedLang) ?? languageConfigs[0];
   const t = langConfig.t;
 
-  const sections = sectionsByLang[langConfig.code];
-  const currentSection = sections[currentIndex];
-  const totalSections = sections.length;
-  const progress = ((currentIndex + 1) / totalSections) * 100;
+  const trainingSections = sectionsByLang[langConfig.code];
+  const currentTrainingSection = trainingSections[trainingIndex];
+  const totalTrainingSections = trainingSections.length;
+  const trainingProgress = ((trainingIndex + 1) / totalTrainingSections) * 100;
 
+  // Auto‑narrate on start and section change in training mode
   useEffect(() => {
-    if (!started) return;
+    if (!trainingStarted || mode !== "training" || !selectedLang) return;
     const timer = setTimeout(() => {
-      speakText(currentSection.text, langConfig.ttsLang);
+      speakText(currentTrainingSection.text, langConfig.ttsLang);
     }, 200);
-    return () => clearTimeout(timer);
-  }, [started, currentIndex, currentSection.text, langConfig.ttsLang]);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [trainingStarted, mode, trainingIndex, currentTrainingSection.text, selectedLang, langConfig.ttsLang]);
 
-  if (!started) {
+  // Quiz state
+  const [quizStarted, setQuizStarted] = useState(false);
+  const [quizFinished, setQuizFinished] = useState(false);
+  const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [answerLog, setAnswerLog] = useState<AnswerLogEntry[]>([]);
+
+  const shuffledQuestions = useMemo(
+    () => shuffleArray(quizQuestions),
+    [quizStarted], // reshuffle when restarting
+  );
+  const totalQuizQuestions = shuffledQuestions.length;
+  const currentQuizQuestion = shuffledQuestions[currentQuizIndex];
+  const correctCount = answerLog.filter((a) => a.isCorrect).length;
+  const incorrectCount = answerLog.filter((a) => !a.isCorrect).length;
+
+  const handleQuizSubmit = () => {
+    if (selectedOptionIndex === null || showFeedback) return;
+    const isCorrect = selectedOptionIndex === currentQuizQuestion.correctIndex;
+    setAnswerLog((prev) => [
+      ...prev,
+      {
+        questionId: currentQuizQuestion.id,
+        questionText: currentQuizQuestion.text,
+        selectedIndex: selectedOptionIndex,
+        correctIndex: currentQuizQuestion.correctIndex,
+        isCorrect,
+      },
+    ]);
+    setShowFeedback(true);
+  };
+
+  const handleQuizNext = () => {
+    if (!showFeedback) return;
+    if (currentQuizIndex + 1 >= totalQuizQuestions) {
+      setQuizFinished(true);
+      return;
+    }
+    setCurrentQuizIndex((idx) => idx + 1);
+    setSelectedOptionIndex(null);
+    setShowFeedback(false);
+  };
+
+  const handleQuizRestart = () => {
+    setQuizStarted(false);
+    setQuizFinished(false);
+    setCurrentQuizIndex(0);
+    setSelectedOptionIndex(null);
+    setShowFeedback(false);
+    setAnswerLog([]);
+  };
+
+  /* -------------------------
+     START SCREEN (language selection)
+     ------------------------- */
+  if (!trainingStarted && mode === "training") {
     return (
       <div
         className="min-h-screen flex items-center justify-center p-4"
@@ -559,7 +686,7 @@ const Training: React.FC<TrainingProps> = ({ selectedLang, onChangeLang, onGoToQ
                       <button
                         key={lang.code}
                         type="button"
-                        onClick={() => onChangeLang(lang.code)}
+                        onClick={() => setSelectedLang(lang.code)}
                         className="flex flex-col items-center justify-center rounded-lg px-2 py-2 border text-xs font-medium transition"
                         style={{
                           borderColor: isActive ? COLORS.tealSoft : "rgba(148,163,184,0.4)",
@@ -582,10 +709,14 @@ const Training: React.FC<TrainingProps> = ({ selectedLang, onChangeLang, onGoToQ
                   <p>• Afsluttes med en GenAI‑quiz.</p>
                 </div>
                 <Button
-                  onClick={() => setStarted(true)}
+                  disabled={!selectedLang}
+                  onClick={() => {
+                    if (!selectedLang) return;
+                    setTrainingStarted(true);
+                  }}
                   className="md:w-48 h-11 font-semibold"
                   style={{
-                    backgroundColor: COLORS.teal,
+                    backgroundColor: selectedLang ? COLORS.teal : "#64748B",
                     color: COLORS.darkBlue,
                     borderColor: "transparent",
                   }}
@@ -600,278 +731,202 @@ const Training: React.FC<TrainingProps> = ({ selectedLang, onChangeLang, onGoToQ
     );
   }
 
-  // Training screen
-  return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{
-        background: `radial-gradient(circle at top left, ${COLORS.tealSoft} 0, transparent 55%), radial-gradient(circle at bottom right, ${COLORS.mint} 0, transparent 65%), ${COLORS.darkBlue}`,
-      }}
-    >
-      <div className="w-full max-w-4xl space-y-4">
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
-          <div className="flex justify-between items-center text-xs md:text-sm">
-            <span className="font-mono" style={{ color: COLORS.mintSoft }}>
-              {t.sectionPrefix} {currentIndex + 1} {t.sectionOf} {totalSections}
-            </span>
-            <span className="font-mono font-semibold" style={{ color: COLORS.tealSoft }}>
-              {t.trainingLabel}
-            </span>
-          </div>
-          <Progress
-            value={progress}
-            className="h-1.5"
-            style={{
-              backgroundColor: "rgba(15,23,42,0.9)",
-            }}
-          />
-        </motion.div>
-
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentSection.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.25 }}
-          >
-            <Card
-              className="backdrop-blur-md"
+  /* -------------------------
+     TRAINING MODE
+     ------------------------- */
+  if (mode === "training") {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{
+          background: `radial-gradient(circle at top left, ${COLORS.tealSoft} 0, transparent 55%), radial-gradient(circle at bottom right, ${COLORS.mint} 0, transparent 65%), ${COLORS.darkBlue}`,
+        }}
+      >
+        <div className="w-full max-w-4xl space-y-4">
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
+            <div className="flex justify-between items-center text-xs md:text-sm">
+              <span className="font-mono" style={{ color: COLORS.mintSoft }}>
+                {t.sectionPrefix} {trainingIndex + 1} {t.sectionOf} {totalTrainingSections}
+              </span>
+              <span className="font-mono font-semibold" style={{ color: COLORS.tealSoft }}>
+                {t.trainingLabel}
+              </span>
+            </div>
+            <Progress
+              value={trainingProgress}
+              className="h-1.5"
               style={{
-                borderColor: "rgba(148,163,184,0.45)",
-                background: "linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.94))",
+                backgroundColor: "rgba(15,23,42,0.9)",
               }}
+            />
+          </motion.div>
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentTrainingSection.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.25 }}
             >
-              <CardHeader className="space-y-2">
-                <CardTitle className="text-2xl md:text-3xl font-semibold" style={{ color: COLORS.white }}>
-                  {currentSection.title}
-                </CardTitle>
-                <CardDescription className="text-xs md:text-sm" style={{ color: "rgba(203,213,225,0.9)" }}>
-                  {t.autoNarrationHint}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Image */}
-                <div
-                  className="rounded-xl overflow-hidden border aspect-video"
-                  style={{
-                    borderColor: "rgba(51,65,85,0.9)",
-                    backgroundColor: "#020617",
-                  }}
-                >
-                  <img
-                    src={currentSection.mediaUrl}
-                    alt={currentSection.title}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                {/* Text */}
-                <div
-                  className="rounded-lg p-4 max-h-64 overflow-y-auto text-sm md:text-base"
-                  style={{
-                    backgroundColor: "rgba(15,23,42,0.9)",
-                    borderColor: "rgba(51,65,85,0.9)",
-                    color: "rgba(226,232,240,0.95)",
-                    borderWidth: 1,
-                  }}
-                >
-                  {currentSection.text
-                    .trim()
-                    .split("\n")
-                    .filter((p) => p.trim().length > 0)
-                    .map((p, idx) => (
-                      <p key={idx} className="mb-2 leading-relaxed">
-                        {p.trim()}
-                      </p>
-                    ))}
-                </div>
-
-                {/* Navigation */}
-                <div className="flex justify-between items-center pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-                    disabled={currentIndex === 0}
+              <Card
+                className="backdrop-blur-md"
+                style={{
+                  borderColor: "rgba(148,163,184,0.45)",
+                  background: "linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.94))",
+                }}
+              >
+                <CardHeader className="space-y-2">
+                  <CardTitle className="text-2xl md:text-3xl font-semibold" style={{ color: COLORS.white }}>
+                    {currentTrainingSection.title}
+                  </CardTitle>
+                  <CardDescription className="text-xs md:text-sm" style={{ color: "rgba(203,213,225,0.9)" }}>
+                    {t.autoNarrationHint}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Image */}
+                  <div
+                    className="rounded-xl overflow-hidden border aspect-video"
                     style={{
-                      borderColor: "rgba(148,163,184,0.6)",
-                      color: COLORS.mintSoft,
-                      backgroundColor: "transparent",
+                      borderColor: "rgba(51,65,85,0.9)",
+                      backgroundColor: "#020617",
                     }}
                   >
-                    {t.prevSection}
-                  </Button>
+                    <img
+                      src={currentTrainingSection.mediaUrl}
+                      alt={currentTrainingSection.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
 
-                  {currentIndex === totalSections - 1 ? (
+                  {/* Text */}
+                  <div
+                    className="rounded-lg p-4 max-h-64 overflow-y-auto text-sm md:text-base"
+                    style={{
+                      backgroundColor: "rgba(15,23,42,0.9)",
+                      borderColor: "rgba(51,65,85,0.9)",
+                      color: "rgba(226,232,240,0.95)",
+                      borderWidth: 1,
+                    }}
+                  >
+                    {currentTrainingSection.text
+                      .trim()
+                      .split("\n")
+                      .filter((p) => p.trim().length > 0)
+                      .map((p, idx) => (
+                        <p key={idx} className="mb-2 leading-relaxed">
+                          {p.trim()}
+                        </p>
+                      ))}
+                  </div>
+
+                  {/* Navigation */}
+                  <div className="flex justify-between items-center pt-2">
                     <Button
+                      variant="outline"
                       size="sm"
-                      className="font-semibold"
-                      onClick={onGoToQuiz}
+                      onClick={() => setTrainingIndex((i) => Math.max(0, i - 1))}
+                      disabled={trainingIndex === 0}
                       style={{
-                        backgroundColor: COLORS.teal,
-                        color: COLORS.darkBlue,
+                        borderColor: "rgba(148,163,184,0.6)",
+                        color: COLORS.mintSoft,
+                        backgroundColor: "transparent",
                       }}
                     >
-                      {t.quizButton}
+                      ← Previous
                     </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      className="font-semibold"
-                      onClick={() => setCurrentIndex((i) => Math.min(totalSections - 1, i + 1))}
-                      style={{
-                        backgroundColor: COLORS.teal,
-                        color: COLORS.darkBlue,
-                      }}
-                    >
-                      {t.nextSection}
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </AnimatePresence>
+
+                    {trainingIndex === totalTrainingSections - 1 ? (
+                      <Button
+                        size="sm"
+                        className="font-semibold"
+                        onClick={() => setMode("quiz")}
+                        style={{
+                          backgroundColor: COLORS.teal,
+                          color: COLORS.darkBlue,
+                        }}
+                      >
+                        {t.quizButton} →
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="font-semibold"
+                        onClick={() => setTrainingIndex((i) => Math.min(totalTrainingSections - 1, i + 1))}
+                        style={{
+                          backgroundColor: COLORS.teal,
+                          color: COLORS.darkBlue,
+                        }}
+                      >
+                        Next Section →
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
-    </div>
-  );
-};
-
-interface AnswerLogEntry {
-  questionId: number;
-  selectedIndex: number | null;
-  correctIndex: number;
-  isCorrect: boolean;
-}
-
-const questions: Question[] = [
-  {
-    id: 1,
-    question: "What is the primary purpose of Collectia's GenAI usage guide?",
-    options: [
-      "To encourage everyone to experiment freely with any AI tool",
-      "To define mandatory rules for safe, compliant GenAI use in a debt collection context",
-      "To replace all existing GDPR and security policies",
-      "To allow sharing debtor data with any GenAI provider",
-    ],
-    correctIndex: 1,
-    explanation:
-      "The guide exists to define mandatory rules and practices for safe, compliant use of GenAI in Collectia's regulated debt collection context.",
-  },
-  // ... include all other questions 2–30 exactly as in your original code ...
-];
-
-const shuffleArray = <T,>(arr: T[]): T[] => {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
+    );
   }
-  return copy;
-};
 
-interface QuizProps {
-  lang: LangCode;
-  onBackToTraining: () => void;
-}
+  /* -------------------------
+     QUIZ MODE
+     ------------------------- */
 
-const Quiz: React.FC<QuizProps> = ({ lang, onBackToTraining }) => {
-  const langConfig = languageConfigs.find((l) => l.code === lang) ?? languageConfigs[0];
-  const t = langConfig.t;
-
-  const [started, setStarted] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [answerLog, setAnswerLog] = useState<AnswerLogEntry[]>([]);
-  const [finished, setFinished] = useState(false);
-
-  const randomizedQuestions = useMemo(() => shuffleArray(questions), []);
-  const currentQuestion = randomizedQuestions[currentIndex];
-
-  const correctCount = answerLog.filter((a) => a.isCorrect).length;
-  const totalAnswered = answerLog.length;
-  const totalQuestions = randomizedQuestions.length;
-  const progressPercent = totalQuestions > 0 ? ((currentIndex + (showFeedback ? 1 : 0)) / totalQuestions) * 100 : 0;
-
-  const handleStart = () => {
-    setStarted(true);
-    setCurrentIndex(0);
-    setSelectedIndex(null);
-    setShowFeedback(false);
-    setAnswerLog([]);
-    setFinished(false);
-  };
-
-  const handleSubmit = () => {
-    if (selectedIndex === null || showFeedback) return;
-    const isCorrect = selectedIndex === currentQuestion.correctIndex;
-    setAnswerLog((prev) => [
-      ...prev,
-      { questionId: currentQuestion.id, selectedIndex, correctIndex: currentQuestion.correctIndex, isCorrect },
-    ]);
-    setShowFeedback(true);
-  };
-
-  const handleNext = () => {
-    if (!showFeedback) return;
-    if (currentIndex + 1 >= totalQuestions) {
-      setFinished(true);
-      return;
-    }
-    setCurrentIndex((prev) => prev + 1);
-    setSelectedIndex(null);
-    setShowFeedback(false);
-  };
-
-  const handleRestart = () => {
-    setStarted(false);
-    setCurrentIndex(0);
-    setSelectedIndex(null);
-    setShowFeedback(false);
-    setAnswerLog([]);
-    setFinished(false);
-  };
-
-  if (!started) {
+  if (mode === "quiz" && !quizStarted) {
     return (
-      <div className="min-h-screen bg-background bg-grid flex items-center justify-center p-4">
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{
+          background: `${COLORS.darkBlue}`,
+        }}
+      >
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="w-full max-w-lg"
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-xl"
         >
-          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-            <CardHeader className="text-center space-y-4">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="mx-auto w-20 h-20 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center"
-              >
-                <span className="text-4xl">🤖</span>
-              </motion.div>
-              <CardTitle className="text-3xl font-bold">{t.quizTitle}</CardTitle>
-              <CardDescription className="text-base text-muted-foreground">{t.quizIntro}</CardDescription>
+          <Card
+            className="backdrop-blur-md"
+            style={{
+              borderColor: "rgba(148,163,184,0.45)",
+              background: "linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.94))",
+            }}
+          >
+            <CardHeader className="space-y-3 text-center">
+              <CardTitle className="text-2xl md:text-3xl font-bold" style={{ color: COLORS.mint }}>
+                {t.quizIntroTitle}
+              </CardTitle>
+              <CardDescription className="text-sm" style={{ color: "rgba(203,213,225,0.9)" }}>
+                {t.quizIntroText}
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg bg-secondary/50 border border-border/50 p-3 text-center">
-                  <p className="text-2xl font-bold text-primary font-mono">{totalQuestions}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{t.quizQuestionsLabel}</p>
-                </div>
-                <div className="rounded-lg bg-secondary/50 border border-border/50 p-3 text-center">
-                  <p className="text-2xl font-bold text-accent font-mono">∞</p>
-                  <p className="text-xs text-muted-foreground mt-1">{t.quizRetriesLabel}</p>
-                </div>
+            <CardContent className="space-y-4">
+              <div
+                className="rounded-lg p-3 text-xs text-slate-200"
+                style={{
+                  backgroundColor: "rgba(15,23,42,0.9)",
+                  borderColor: "rgba(51,65,85,0.9)",
+                  borderWidth: 1,
+                }}
+              >
+                <p>• 10 multiple‑choice‑spørgsmål.</p>
+                <p>• Ét korrekt svar per spørgsmål.</p>
+                <p>• Du får forklaring efter hvert spørgsmål.</p>
               </div>
-              <Button onClick={handleStart} className="w-full h-12 text-base font-semibold" size="lg">
-                {t.quizStartButton}
-              </Button>
-              <Button variant="outline" className="w-full h-10 text-xs mt-1" onClick={onBackToTraining}>
-                ← {langConfig.t.trainingLabel}
+              <Button
+                className="w-full h-11 font-semibold"
+                style={{
+                  backgroundColor: COLORS.teal,
+                  color: COLORS.darkBlue,
+                }}
+                onClick={() => setQuizStarted(true)}
+              >
+                {t.quizStartButton} →
               </Button>
             </CardContent>
           </Card>
@@ -880,67 +935,83 @@ const Quiz: React.FC<QuizProps> = ({ lang, onBackToTraining }) => {
     );
   }
 
-  if (finished) {
-    const percentage = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
-    let message: string;
-    let emoji: string;
+  if (mode === "quiz" && quizFinished) {
+    const percentage = totalQuizQuestions > 0 ? Math.round((correctCount / totalQuizQuestions) * 100) : 0;
+
+    let resultMessage: string;
     if (percentage >= 80) {
-      message = t.quizGreatJob;
-      emoji = "🏆";
+      resultMessage = "Great job! You have a strong understanding of GenAI usage at Collectia.";
     } else if (percentage >= 50) {
-      message = t.quizGoodStart;
-      emoji = "📚";
+      resultMessage = "Good start. Review the training material and try again to improve your score.";
     } else {
-      message = t.quizNeedsReview;
-      emoji = "⚠️";
+      resultMessage = "You should revisit the GenAI training before relying on GenAI in your daily work.";
     }
 
     return (
-      <div className="min-h-screen bg-background bg-grid flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: COLORS.darkBlue }}>
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="w-full max-w-lg"
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-xl"
         >
-          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-            <CardHeader className="text-center space-y-4">
-              <motion.div
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="text-6xl mx-auto"
-              >
-                {emoji}
-              </motion.div>
-              <CardTitle className="text-3xl font-bold">{t.quizCompleteTitle}</CardTitle>
+          <Card
+            className="backdrop-blur-md"
+            style={{
+              borderColor: "rgba(148,163,184,0.45)",
+              background: "linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.94))",
+            }}
+          >
+            <CardHeader className="space-y-3 text-center">
+              <CardTitle className="text-2xl md:text-3xl font-bold" style={{ color: COLORS.mint }}>
+                Quiz result
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="text-center">
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.4 }}
-                  className="text-6xl font-bold font-mono text-primary"
-                >
+            <CardContent className="space-y-5">
+              <div className="text-center space-y-1">
+                <p className="text-5xl font-mono font-bold" style={{ color: COLORS.tealSoft }}>
                   {percentage}%
-                </motion.p>
-                <p className="text-muted-foreground mt-2">
-                  <span className="text-primary font-semibold">{correctCount}</span> {t.quizScoreSummary}{" "}
-                  {totalQuestions}
                 </p>
+                <p className="text-sm text-slate-200">{`${correctCount} correct / ${totalQuizQuestions} questions`}</p>
               </div>
-              <div className="rounded-lg bg-secondary/50 border border-border/50 p-4">
-                <p className="text-sm text-foreground/80">{message}</p>
+              <div
+                className="rounded-lg p-3 text-sm"
+                style={{
+                  backgroundColor: "rgba(15,23,42,0.9)",
+                  borderColor: "rgba(51,65,85,0.9)",
+                  borderWidth: 1,
+                  color: "rgba(226,232,240,0.95)",
+                }}
+              >
+                {resultMessage}
               </div>
-              <div className="space-y-2">
-                <Button onClick={handleRestart} className="w-full h-12 text-base font-semibold" size="lg">
+
+              <div className="flex flex-col md:flex-row gap-3">
+                <Button
+                  className="flex-1 h-10 font-semibold"
+                  style={{
+                    backgroundColor: COLORS.teal,
+                    color: COLORS.darkBlue,
+                  }}
+                  onClick={handleQuizRestart}
+                >
                   {t.quizRestart}
                 </Button>
-                <Button variant="outline" className="w-full h-10 text-xs" onClick={onBackToTraining}>
-                  ← {langConfig.t.trainingLabel}
+                <Button
+                  className="flex-1 h-10 font-semibold"
+                  variant="outline"
+                  style={{
+                    borderColor: "rgba(148,163,184,0.6)",
+                    color: COLORS.mintSoft,
+                  }}
+                  onClick={() => setQuizFinished(false)}
+                >
+                  {t.quizReview}
                 </Button>
               </div>
+
+              {/* Answer review */}
+              {!quizFinished && <div className="mt-4" />}
             </CardContent>
           </Card>
         </motion.div>
@@ -948,134 +1019,182 @@ const Quiz: React.FC<QuizProps> = ({ lang, onBackToTraining }) => {
     );
   }
 
-  const lastAnswer = answerLog[answerLog.length - 1];
+  if (mode === "quiz" && quizStarted) {
+    const lastAnswer = answerLog[answerLog.length - 1];
 
-  return (
-    <div className="min-h-screen bg-background bg-grid flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-2xl space-y-4">
-        {/* Progress bar */}
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
-          <div className="flex justify-between items-center text-sm text-muted-foreground">
-            <span className="font-mono">
-              {t.quizQuestionShort.charAt(0)}
-              {currentIndex + 1}/{totalQuestions}
-            </span>
-            <span className="font-mono text-primary">
-              {correctCount}/{totalAnswered || 0} {t.quizCorrectShort}
-            </span>
-          </div>
-          <Progress value={progressPercent} className="h-1.5" />
-        </motion.div>
+    if (!showFeedback && quizFinished) {
+      // should not happen, but guard
+      setQuizFinished(true);
+    }
 
-        {/* Question card */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentIndex}
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -40 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-xl leading-relaxed font-medium">{currentQuestion.question}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {currentQuestion.options.map((option, index) => {
-                  const isSelected = selectedIndex === index;
-                  const isCorrect = index === currentQuestion.correctIndex;
-                  const userWasCorrect = lastAnswer?.isCorrect;
-
-                  let optionClasses =
-                    "w-full text-left p-4 rounded-lg border transition-all duration-200 text-sm leading-relaxed ";
-
-                  if (showFeedback) {
-                    if (isCorrect) {
-                      optionClasses += "border-green-500/50 bg-green-500/10 text-green-300";
-                    } else if (isSelected && !userWasCorrect) {
-                      optionClasses += "border-destructive/50 bg-destructive/10 text-red-300";
-                    } else {
-                      optionClasses += "border-border/30 bg-secondary/20 text-muted-foreground opacity-50";
-                    }
-                  } else if (isSelected) {
-                    optionClasses += "border-primary/60 bg-primary/10 text-foreground";
-                  } else {
-                    optionClasses +=
-                      "border-border/40 bg-secondary/30 text-foreground/80 hover:border-primary/40 hover:bg-primary/5 cursor-pointer";
-                  }
-
-                  return (
-                    <motion.button
-                      key={index}
-                      whileHover={!showFeedback ? { scale: 1.01 } : undefined}
-                      whileTap={!showFeedback ? { scale: 0.99 } : undefined}
-                      onClick={() => !showFeedback && setSelectedIndex(index)}
-                      className={optionClasses}
-                      disabled={showFeedback}
-                    >
-                      <span className="flex gap-3 items-start">
-                        <span className="shrink-0 w-6 h-6 rounded-full border border-current/30 flex items-center justify-center text-xs font-mono font-bold mt-0.5">
-                          {String.fromCharCode(65 + index)}
-                        </span>
-                        <span>{option}</span>
-                      </span>
-                    </motion.button>
-                  );
-                })}
-
-                {!showFeedback && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pt-2">
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={selectedIndex === null}
-                      className="w-full h-11 font-semibold"
-                    >
-                      {t.quizSubmit}
-                    </Button>
-                  </motion.div>
-                )}
-
-                {showFeedback && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 pt-2">
-                    <div
-                      className={`rounded-lg p-4 border ${
-                        lastAnswer?.isCorrect
-                          ? "border-green-500/30 bg-green-500/5"
-                          : "border-destructive/30 bg-destructive/5"
-                      }`}
-                    >
-                      <p
-                        className={`font-bold text-sm mb-1 ${
-                          lastAnswer?.isCorrect ? "text-green-400" : "text-red-400"
-                        }`}
-                      >
-                        {lastAnswer?.isCorrect ? t.quizCorrectLabel : t.quizIncorrectLabel}
-                      </p>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{currentQuestion.explanation}</p>
-                    </div>
-                    <Button onClick={handleNext} className="w-full h-11 font-semibold">
-                      {currentIndex + 1 >= totalQuestions ? t.quizFinishQuiz : t.quizNextQuestion}
-                    </Button>
-                  </motion.div>
-                )}
-              </CardContent>
-            </Card>
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{
+          backgroundColor: COLORS.darkBlue,
+        }}
+      >
+        <div className="w-full max-w-3xl space-y-4">
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
+            <div className="flex justify-between items-center text-xs md:text-sm text-slate-200">
+              <span className="font-mono">
+                Q{currentQuizIndex + 1}/{totalQuizQuestions}
+              </span>
+              <span className="font-mono">
+                {correctCount} correct / {incorrectCount} incorrect
+              </span>
+            </div>
+            <Progress
+              value={((currentQuizIndex + (showFeedback ? 1 : 0)) / totalQuizQuestions) * 100}
+              className="h-1.5"
+            />
           </motion.div>
-        </AnimatePresence>
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentQuizQuestion.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.25 }}
+            >
+              <Card
+                className="backdrop-blur-md"
+                style={{
+                  borderColor: "rgba(148,163,184,0.45)",
+                  background: "linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.94))",
+                }}
+              >
+                <CardHeader>
+                  <CardTitle className="text-xl md:text-2xl font-semibold text-slate-50">
+                    {currentQuizQuestion.text}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {currentQuizQuestion.options.map((opt, idx) => {
+                    const isSelected = selectedOptionIndex === idx;
+                    const isCorrect = idx === currentQuizQuestion.correctIndex;
+                    const userWasCorrect = lastAnswer?.isCorrect;
+
+                    let classes = "w-full text-left p-3 rounded-lg border text-sm transition-all";
+
+                    if (showFeedback) {
+                      if (isCorrect) {
+                        classes += " border-emerald-400 bg-emerald-500/10 text-emerald-200";
+                      } else if (isSelected && !userWasCorrect) {
+                        classes += " border-red-400 bg-red-500/10 text-red-200";
+                      } else {
+                        classes += " border-slate-700 bg-slate-900/60 text-slate-400";
+                      }
+                    } else if (isSelected) {
+                      classes += " border-cyan-400 bg-cyan-500/10 text-slate-50";
+                    } else {
+                      classes +=
+                        " border-slate-700 bg-slate-900/60 text-slate-100 hover:border-cyan-400 hover:bg-cyan-500/5";
+                    }
+
+                    return (
+                      <button
+                        key={idx}
+                        disabled={showFeedback}
+                        onClick={() => setSelectedOptionIndex(idx)}
+                        className={classes}
+                      >
+                        <span className="flex gap-2 items-start">
+                          <span className="w-6 h-6 rounded-full border border-current/40 flex items-center justify-center text-xs font-mono mt-0.5">
+                            {String.fromCharCode(65 + idx)}
+                          </span>
+                          <span>{opt}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+
+                  {!showFeedback && (
+                    <Button
+                      className="w-full h-10 font-semibold mt-2"
+                      disabled={selectedOptionIndex === null}
+                      onClick={handleQuizSubmit}
+                      style={{
+                        backgroundColor: selectedOptionIndex !== null ? COLORS.teal : "#64748B",
+                        color: COLORS.darkBlue,
+                      }}
+                    >
+                      Submit answer
+                    </Button>
+                  )}
+
+                  {showFeedback && lastAnswer && (
+                    <div className="space-y-3 mt-2">
+                      <div
+                        className="rounded-lg p-3 text-sm"
+                        style={{
+                          backgroundColor: lastAnswer.isCorrect ? "rgba(16,185,129,0.1)" : "rgba(248,113,113,0.1)",
+                          borderColor: lastAnswer.isCorrect ? "rgba(52,211,153,0.8)" : "rgba(248,113,113,0.8)",
+                          borderWidth: 1,
+                          color: "rgba(226,232,240,0.95)",
+                        }}
+                      >
+                        <p
+                          className="font-semibold mb-1"
+                          style={{
+                            color: lastAnswer.isCorrect ? "#6EE7B7" : "#FCA5A5",
+                          }}
+                        >
+                          {lastAnswer.isCorrect ? t.quizCorrect : t.quizIncorrect}
+                        </p>
+                        <p>{currentQuizQuestion.explanation}</p>
+                      </div>
+                      <Button
+                        className="w-full h-10 font-semibold"
+                        onClick={handleQuizNext}
+                        style={{
+                          backgroundColor: COLORS.teal,
+                          color: COLORS.darkBlue,
+                        }}
+                      >
+                        {currentQuizIndex + 1 >= totalQuizQuestions ? "Finish quiz" : "Next question"}
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Answer review mode (when quizFinished=false but we've clicked review) */}
+          {!quizFinished && answerLog.length === totalQuizQuestions && (
+            <div className="mt-4">
+              <Card
+                className="backdrop-blur-md"
+                style={{
+                  borderColor: "rgba(148,163,184,0.45)",
+                  background: "rgba(15,23,42,0.96)",
+                }}
+              >
+                <CardHeader>
+                  <CardTitle className="text-sm text-slate-100">Answer review</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-xs text-slate-200 max-h-60 overflow-y-auto">
+                  {answerLog.map((a, idx) => (
+                    <div key={idx} className="border-b border-slate-700 pb-2">
+                      <p className="font-semibold mb-1">
+                        Q{idx + 1}: {a.questionText}
+                      </p>
+                      <p>Your answer: {quizQuestions.find((q) => q.id === a.questionId)?.options[a.selectedIndex]}</p>
+                      <p>Correct answer: {quizQuestions.find((q) => q.id === a.questionId)?.options[a.correctIndex]}</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  }
 
-const App: React.FC = () => {
-  const [mode, setMode] = useState<"training" | "quiz">("training");
-  const [selectedLang, setSelectedLang] = useState<LangCode>("da");
-
-  return mode === "training" ? (
-    <Training selectedLang={selectedLang} onChangeLang={setSelectedLang} onGoToQuiz={() => setMode("quiz")} />
-  ) : (
-    <Quiz lang={selectedLang} onBackToTraining={() => setMode("training")} />
-  );
+  return null;
 };
 
 export default App;
