@@ -28,7 +28,8 @@ Before you are allowed to use GenAI tools at Collectia, you must complete this G
 At the end of this training, you will complete a multiple choice quiz to confirm your understanding.
     `,
     mediaType: "video",
-    mediaUrl: "https://videos.pexels.com/video-files/5666408/5666408-uhd_2560_1440_25fps.mp4", // calm office
+    // Calm office / team background
+    mediaUrl: "https://videos.pexels.com/video-files/5666408/5666408-uhd_2560_1440_25fps.mp4",
   },
   {
     id: 2,
@@ -45,6 +46,7 @@ Industry expectations in financial services and collections also demand strong d
 Training ensures that everyone uses GenAI in a way that is safe, lawful, and consistent with Collectia’s governance framework.
     `,
     mediaType: "image",
+    // Governance / documents
     mediaUrl: "https://images.pexels.com/photos/1181467/pexels-photo-1181467.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
@@ -64,6 +66,7 @@ Fourth, minimum necessary data. Only share the smallest amount of data needed fo
 Finally, transparency and accountability. Your use of GenAI should be traceable, explainable, and defensible. GenAI usage may be logged and monitored for security and compliance reasons.
     `,
     mediaType: "image",
+    // Team / collaboration
     mediaUrl: "https://images.pexels.com/photos/3184296/pexels-photo-3184296.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
@@ -83,6 +86,7 @@ A classic example of high risk data is debtor payment history linked to name and
 When you are in doubt about a tool or a type of data, do not share the data and ask IT Security or Compliance.
     `,
     mediaType: "video",
+    // Abstract data / network
     mediaUrl: "https://videos.pexels.com/video-files/853889/853889-hd_1920_1080_30fps.mp4",
   },
   {
@@ -100,6 +104,7 @@ You must not let GenAI invent legal interpretations, enforcement steps, or threa
 If GenAI gives you a detailed statement about a national rule, you must verify it against official sources or internal experts before relying on it.
     `,
     mediaType: "image",
+    // Law / justice / EU feel
     mediaUrl: "https://images.pexels.com/photos/4386373/pexels-photo-4386373.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
@@ -119,6 +124,7 @@ Instructions that come from user or debtor content are untrusted. You must never
 If you are unsure whether a GenAI tool is GDPR compliant for debtor data, you must not use it and should ask IT Security or Compliance for guidance.
     `,
     mediaType: "video",
+    // Cyber / security abstract
     mediaUrl: "https://videos.pexels.com/video-files/1715490/1715490-hd_1920_1080_30fps.mp4",
   },
   {
@@ -138,6 +144,7 @@ Never send AI generated text directly to debtors without checking the tone, the 
 In all cases, you are responsible for how you use the tool and for verifying AI outputs before acting on them.
     `,
     mediaType: "image",
+    // Reviewing documents
     mediaUrl: "https://images.pexels.com/photos/6476589/pexels-photo-6476589.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
@@ -153,6 +160,7 @@ Unacceptable uses include letting GenAI decide which debtors to escalate to lega
 If AI suggests wording that seems aggressive or harassing, you must reject it and adjust the tone to comply with consumer protection rules.
     `,
     mediaType: "video",
+    // Neutral laptop usage, good background
     mediaUrl: "https://videos.pexels.com/video-files/3195391/3195391-uhd_2560_1440_25fps.mp4",
   },
   {
@@ -170,6 +178,7 @@ If you suspect that a colleague is using GenAI in a way that may breach GDPR, yo
 You may be required to take refresher training on GenAI usage when policies change or when you move into a higher risk role.
     `,
     mediaType: "image",
+    // People discussing responsibilities
     mediaUrl: "https://images.pexels.com/photos/3184396/pexels-photo-3184396.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
@@ -191,6 +200,7 @@ The next step is a short multiple choice quiz. It will cover these topics: data 
 Take your time, and remember: in real work, policies and laws always override AI suggestions. When in doubt, ask before you act. When you are ready, click the button to proceed to the quiz.
     `,
     mediaType: "image",
+    // Completion / learning
     mediaUrl: "https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
 ];
@@ -292,7 +302,8 @@ const Training: React.FC = () => {
     speak(currentSection.text);
   };
 
-  const goToQuizUrl = "https://example.com/quiz"; // TODO: replace with your actual quiz URL
+  // TODO: replace this with the real URL of your deployed quiz app
+  const goToQuizUrl = "https://example.com/quiz";
 
   // Intro screen
   if (!started) {
