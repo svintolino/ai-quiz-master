@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,7 +8,6 @@ interface TrainingSection {
   id: number;
   title: string;
   text: string;
-  mediaType: "image" | "video";
   mediaUrl: string;
 }
 
@@ -27,9 +26,7 @@ Before you are allowed to use GenAI tools at Collectia, you must complete this G
 
 At the end of this training, you will complete a multiple choice quiz to confirm your understanding.
     `,
-    mediaType: "video",
-    // Calm office / team background
-    mediaUrl: "https://videos.pexels.com/video-files/5666408/5666408-uhd_2560_1440_25fps.mp4",
+    mediaUrl: "https://images.pexels.com/photos/1181355/pexels-photo-1181355.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
     id: 2,
@@ -45,8 +42,6 @@ Industry expectations in financial services and collections also demand strong d
 
 Training ensures that everyone uses GenAI in a way that is safe, lawful, and consistent with Collectia’s governance framework.
     `,
-    mediaType: "image",
-    // Governance / documents
     mediaUrl: "https://images.pexels.com/photos/1181467/pexels-photo-1181467.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
@@ -65,8 +60,6 @@ Fourth, minimum necessary data. Only share the smallest amount of data needed fo
 
 Finally, transparency and accountability. Your use of GenAI should be traceable, explainable, and defensible. GenAI usage may be logged and monitored for security and compliance reasons.
     `,
-    mediaType: "image",
-    // Team / collaboration
     mediaUrl: "https://images.pexels.com/photos/3184296/pexels-photo-3184296.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
@@ -85,9 +78,7 @@ A classic example of high risk data is debtor payment history linked to name and
 
 When you are in doubt about a tool or a type of data, do not share the data and ask IT Security or Compliance.
     `,
-    mediaType: "video",
-    // Abstract data / network
-    mediaUrl: "https://videos.pexels.com/video-files/853889/853889-hd_1920_1080_30fps.mp4",
+    mediaUrl: "https://images.pexels.com/photos/5380642/pexels-photo-5380642.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
     id: 5,
@@ -103,8 +94,6 @@ You must not let GenAI invent legal interpretations, enforcement steps, or threa
 
 If GenAI gives you a detailed statement about a national rule, you must verify it against official sources or internal experts before relying on it.
     `,
-    mediaType: "image",
-    // Law / justice / EU feel
     mediaUrl: "https://images.pexels.com/photos/4386373/pexels-photo-4386373.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
@@ -123,9 +112,7 @@ Instructions that come from user or debtor content are untrusted. You must never
 
 If you are unsure whether a GenAI tool is GDPR compliant for debtor data, you must not use it and should ask IT Security or Compliance for guidance.
     `,
-    mediaType: "video",
-    // Cyber / security abstract
-    mediaUrl: "https://videos.pexels.com/video-files/1715490/1715490-hd_1920_1080_30fps.mp4",
+    mediaUrl: "https://images.pexels.com/photos/5380648/pexels-photo-5380648.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
     id: 7,
@@ -143,8 +130,6 @@ Never send AI generated text directly to debtors without checking the tone, the 
 
 In all cases, you are responsible for how you use the tool and for verifying AI outputs before acting on them.
     `,
-    mediaType: "image",
-    // Reviewing documents
     mediaUrl: "https://images.pexels.com/photos/6476589/pexels-photo-6476589.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
@@ -159,9 +144,7 @@ Unacceptable uses include letting GenAI decide which debtors to escalate to lega
 
 If AI suggests wording that seems aggressive or harassing, you must reject it and adjust the tone to comply with consumer protection rules.
     `,
-    mediaType: "video",
-    // Neutral laptop usage, good background
-    mediaUrl: "https://videos.pexels.com/video-files/3195391/3195391-uhd_2560_1440_25fps.mp4",
+    mediaUrl: "https://images.pexels.com/photos/2777898/pexels-photo-2777898.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
     id: 9,
@@ -177,8 +160,6 @@ If you suspect that a colleague is using GenAI in a way that may breach GDPR, yo
 
 You may be required to take refresher training on GenAI usage when policies change or when you move into a higher risk role.
     `,
-    mediaType: "image",
-    // People discussing responsibilities
     mediaUrl: "https://images.pexels.com/photos/3184396/pexels-photo-3184396.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
   {
@@ -199,113 +180,38 @@ The next step is a short multiple choice quiz. It will cover these topics: data 
 
 Take your time, and remember: in real work, policies and laws always override AI suggestions. When in doubt, ask before you act. When you are ready, click the button to proceed to the quiz.
     `,
-    mediaType: "image",
-    // Completion / learning
     mediaUrl: "https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg?auto=compress&cs=tinysrgb&w=1200",
   },
 ];
 
-// Simple TTS helper hook
-const useTextToSpeech = () => {
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const [speaking, setSpeaking] = useState(false);
-  const [paused, setPaused] = useState(false);
-
-  const cancelSpeech = () => {
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-    setSpeaking(false);
-    setPaused(false);
-  };
-
-  const speak = (text: string) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    cancelSpeech();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.onend = () => {
-      setSpeaking(false);
-      setPaused(false);
-    };
-    utterance.onerror = () => {
-      setSpeaking(false);
-      setPaused(false);
-    };
-    utteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
-    setSpeaking(true);
-    setPaused(false);
-  };
-
-  const pause = () => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-      window.speechSynthesis.pause();
-      setPaused(true);
-    }
-  };
-
-  const resume = () => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-      setPaused(false);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      cancelSpeech();
-    };
-  }, []);
-
-  return { speak, pause, resume, cancelSpeech, speaking, paused };
-};
+// EXACTLY like your console test: no cancel, just speak
+function speakText(text: string) {
+  const utterance = new SpeechSynthesisUtterance(text);
+  speechSynthesis.speak(utterance);
+}
 
 const Training: React.FC = () => {
   const [started, setStarted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const { speak, pause, resume, cancelSpeech, speaking, paused } = useTextToSpeech();
 
-  const currentSection = useMemo(() => sections[currentIndex], [currentIndex]);
+  const currentSection = sections[currentIndex];
   const totalSections = sections.length;
-  const progress = totalSections > 0 ? ((currentIndex + 1) / totalSections) * 100 : 0;
+  const progress = ((currentIndex + 1) / totalSections) * 100;
 
+  // Auto‑narrate when training starts and when section changes
   useEffect(() => {
-    // Stop speech when changing section
-    cancelSpeech();
-  }, [currentIndex, cancelSpeech]);
+    if (!started) return;
+    const t = setTimeout(() => {
+      speakText(currentSection.text);
+    }, 200);
+    return () => {
+      clearTimeout(t);
+      // No speechSynthesis.cancel() here on purpose
+    };
+  }, [started, currentIndex, currentSection.text]);
 
-  const handleNext = () => {
-    if (currentIndex + 1 < totalSections) {
-      setCurrentIndex((prev) => prev + 1);
-    }
-  };
+  const goToQuizUrl = "https://example.com/quiz"; // change to your quiz URL when ready
 
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1);
-    }
-  };
-
-  const handlePlay = () => {
-    if (paused) {
-      resume();
-    } else {
-      speak(currentSection.text);
-    }
-  };
-
-  const handleRestartSpeech = () => {
-    speak(currentSection.text);
-  };
-
-  // TODO: replace this with the real URL of your deployed quiz app
-  const goToQuizUrl = "https://example.com/quiz";
-
-  // Intro screen
   if (!started) {
     return (
       <div className="min-h-screen bg-background bg-grid flex items-center justify-center p-4">
@@ -327,21 +233,10 @@ const Training: React.FC = () => {
               </motion.div>
               <CardTitle className="text-3xl font-bold text-glow">GenAI Mandatory Training</CardTitle>
               <CardDescription className="text-base text-muted-foreground">
-                Listen through this training to learn how to use Generative AI safely and compliantly at Collectia. At
-                the end you will take a short quiz.
+                Click Start Training, and each section will be narrated automatically.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg bg-secondary/50 border border-border/50 p-3 text-center">
-                  <p className="text-2xl font-bold text-primary font-mono">{sections.length}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Training sections</p>
-                </div>
-                <div className="rounded-lg bg-secondary/50 border border-border/50 p-3 text-center">
-                  <p className="text-2xl font-bold text-accent font-mono">🔊</p>
-                  <p className="text-xs text-muted-foreground mt-1">Audio narration</p>
-                </div>
-              </div>
               <Button onClick={() => setStarted(true)} className="w-full h-12 text-base font-semibold" size="lg">
                 Start Training →
               </Button>
@@ -377,28 +272,17 @@ const Training: React.FC = () => {
               <CardHeader className="space-y-2">
                 <CardTitle className="text-2xl font-semibold leading-snug">{currentSection.title}</CardTitle>
                 <CardDescription className="text-xs text-muted-foreground">
-                  Listen to the narration and reflect on how this applies to your daily work.
+                  The text is narrated automatically. You can also read along below.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Media */}
+                {/* Image, visible immediately */}
                 <div className="rounded-xl overflow-hidden border border-border/40 bg-black/40 aspect-video">
-                  {currentSection.mediaType === "image" ? (
-                    <img
-                      src={currentSection.mediaUrl}
-                      alt={currentSection.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <video
-                      src={currentSection.mediaUrl}
-                      className="w-full h-full object-cover"
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                    />
-                  )}
+                  <img
+                    src={currentSection.mediaUrl}
+                    alt={currentSection.title}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
 
                 {/* Text */}
@@ -414,38 +298,27 @@ const Training: React.FC = () => {
                     ))}
                 </div>
 
-                {/* Audio controls */}
-                <div className="flex flex-wrap gap-3 items-center">
-                  <Button size="sm" variant="default" onClick={handlePlay} className="flex items-center gap-2">
-                    {speaking && !paused ? "Pause narration" : "Play narration"}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={paused ? resume : pause} disabled={!speaking}>
-                    {paused ? "Resume" : "Pause"}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={handleRestartSpeech}>
-                    Restart narration
-                  </Button>
-                </div>
-
                 {/* Navigation */}
                 <div className="flex justify-between items-center pt-2">
-                  <Button variant="outline" size="sm" onClick={handlePrevious} disabled={currentIndex === 0}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+                    disabled={currentIndex === 0}
+                  >
                     ← Previous
                   </Button>
 
                   {currentIndex === totalSections - 1 ? (
-                    <Button
-                      size="sm"
-                      className="font-semibold"
-                      onClick={() => {
-                        cancelSpeech();
-                        window.open(goToQuizUrl, "_blank");
-                      }}
-                    >
+                    <Button size="sm" className="font-semibold" onClick={() => window.open(goToQuizUrl, "_blank")}>
                       Go to GenAI Usage Quiz →
                     </Button>
                   ) : (
-                    <Button size="sm" className="font-semibold" onClick={handleNext}>
+                    <Button
+                      size="sm"
+                      className="font-semibold"
+                      onClick={() => setCurrentIndex((i) => Math.min(totalSections - 1, i + 1))}
+                    >
                       Next Section →
                     </Button>
                   )}
